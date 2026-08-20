@@ -261,10 +261,10 @@
                 </div>
 
                 <div class="relative">
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Asignar a Cliente:</label>
+                    <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Asignar a Cliente (Escribe cualquier nombre o búscalo):</label>
                     <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all shadow-sm">
                         <i class="fas fa-user-tag text-gray-400 text-sm"></i>
-                        <input type="text" id="pos-cliente-input" oninput="buscarClientePOS()" onfocus="mostrarListaClientesPOS()" placeholder="Nombre, DNI o RUC..." value="Público en General" class="w-full bg-transparent py-2.5 px-3 text-sm font-bold text-gray-800 outline-none">
+                        <input type="text" id="pos-cliente-input" oninput="buscarClientePOS()" onfocus="mostrarListaClientesPOS()" placeholder="Nombre libre, DNI o RUC..." value="Público en General" class="w-full bg-transparent py-2.5 px-3 text-sm font-bold text-gray-800 outline-none">
                         <button onclick="limpiarClientePOS()" class="text-gray-400 hover:text-red-500"><i class="fas fa-times-circle"></i></button>
                     </div>
                     <div id="pos-cliente-dropdown" class="absolute w-full bg-white border border-gray-200 rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto hidden z-[100] custom-scrollbar"></div>
@@ -322,6 +322,7 @@
                 </div>
                 <button onclick="iniciarCobro()" id="btn-cobrar" class="w-full bg-gray-900 text-white py-4 rounded-xl text-lg font-bold hover:bg-black transition-transform hover:-translate-y-1 active:scale-95 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2"><i class="fas fa-check-circle"></i> Procesar Venta</button>
                 <button onclick="generarCotizacion()" class="w-full bg-white border-2 border-gray-900 text-gray-900 py-3 rounded-xl text-sm font-bold hover:bg-gray-100 transition-transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2 mt-3"><i class="fas fa-file-invoice"></i> Generar Cotización (Proforma)</button>
+                <button onclick="verHistorialCotizaciones()" class="w-full bg-blue-50 text-blue-600 border border-blue-200 py-3 rounded-xl text-sm font-bold hover:bg-blue-100 transition-transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2 mt-2"><i class="fas fa-list-alt"></i> Ver Historial de Cotizaciones</button>
             </div>
         </aside>
     </main>
@@ -546,7 +547,7 @@
             { id: 1, nombre: 'Wilson Daniel', correo: 'admin@canimoda.pe', pass: '123456', rol: 'Administrador Principal', dni: '76543210' },
             { id: 2, nombre: 'Cajero Prueba', correo: 'cajero@canimoda.pe', pass: 'cajero123', rol: 'Cajero / Trabajador', dni: '12345678' }
         ],
-        productos: [], clientesB2C: [], clientesB2B: [], ventasHistorial: [], notas: "", sesionActiva: null
+        productos: [], clientesB2C: [], clientesB2B: [], ventasHistorial: [], cotizaciones: [], notas: "", sesionActiva: null
     };
 
     let db = {};
@@ -651,7 +652,7 @@
         }
     };
 
-    // NUEVO: SINCRONIZAR VENTAS HISTÓRICAS DE NEON
+    // SINCRONIZAR VENTAS HISTÓRICAS DE NEON
     window.sincronizarVentasNube = async function() {
         try {
             const response = await fetch('/api/ventas');
@@ -667,7 +668,6 @@
                 ventasNube.forEach(vNube => {
                     const idNube = getProp(vNube, 'id');
 
-                    // Solo agregamos si no existe en el historial local
                     if (!db.ventasHistorial.find(v => v.id === idNube)) {
                         let parsedItems = [];
                         try {
@@ -691,7 +691,6 @@
                     }
                 });
 
-                // Ordenamos por ID para que los más nuevos salgan arriba en reportes
                 db.ventasHistorial.sort((a,b) => a.id - b.id);
                 window.renderizarDatos();
                 localStorage.setItem(DB_KEY, JSON.stringify(db));
@@ -746,16 +745,47 @@
         `, 'Cerrar Resumen', cerrarModal);
     }
 
+    // ==========================================
+    // SISTEMA DE COTIZACIONES CON WHATSAPP
+    // ==========================================
     window.generarCotizacion = function() {
         if(carrito.length === 0) return mostrarToast('El carrito está vacío', 'error');
 
-        let itemsHtml = carrito.map(i => `<div class="flex justify-between text-xs mb-1"><span class="truncate w-3/5">${i.qty}x ${i.nombre} (${i.talla})</span><span class="w-2/5 text-right font-bold">S/ ${(i.precioAplicado * i.qty).toFixed(2)}</span></div>`).join('');
+        // Tomar el nombre EXACTO de la caja de texto (así no esté registrado)
+        const nombreClienteReal = document.getElementById('pos-cliente-input').value.trim() || 'Público en General';
 
+        const newId = db.cotizaciones.length > 0 ? Math.max(...db.cotizaciones.map(c=>Number(c.id))) + 1 : 1;
+        const fechaCot = new Date().toLocaleString('es-PE');
+        const validez = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-PE');
+
+        const nuevaCotizacion = {
+            id: newId,
+            fecha: fechaCot,
+            validez: validez,
+            cliente: nombreClienteReal,
+            vendedor: db.sesionActiva ? db.sesionActiva.nombre : 'Sistema',
+            total: totalActual,
+            items: JSON.parse(JSON.stringify(carrito))
+        };
+
+        db.cotizaciones.push(nuevaCotizacion);
+        try { guardarDB(); } catch(e) {}
+
+        mostrarCotizacion(nuevaCotizacion);
+        mostrarToast('Cotización generada y guardada en el historial', 'success');
+    };
+
+    window.mostrarCotizacion = function(cot) {
+        let itemsHtml = cot.items.map(i => `<div class="flex justify-between text-xs mb-1"><span class="truncate w-3/5">${i.qty}x ${i.nombre} (${i.talla})</span><span class="w-2/5 text-right font-bold">S/ ${(i.precioAplicado * i.qty).toFixed(2)}</span></div>`).join('');
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
 
-        const fechaCot = new Date().toLocaleString('es-PE');
-        const validez = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-PE');
+        // Generar texto para WhatsApp
+        let waText = `¡Hola ${cot.cliente}! 🐾%0AEsta es tu cotización de *${db.empresa.nombre}*:%0A%0A`;
+        cot.items.forEach(i => {
+            waText += `- ${i.qty}x ${i.nombre} (Talla: ${i.talla}) -> S/ ${(i.precioAplicado * i.qty).toFixed(2)}%0A`;
+        });
+        waText += `%0A*TOTAL: S/ ${cot.total.toFixed(2)}*%0A%0A¡Te esperamos pronto! 🐶`;
 
         abrirModal('Cotización Generada', `
             <div class="max-w-[300px] mx-auto bg-white p-6 shadow-sm border border-gray-200 ticket-termico font-mono text-gray-800 relative">
@@ -764,34 +794,74 @@
                     <h2 class="font-black text-xl tracking-tighter uppercase">${db.empresa.nombre}</h2>
                     <p class="text-[10px] mt-1">RUC: ${db.empresa.ruc}</p>
                     <p class="text-[10px]">${db.empresa.dir}</p>
-                    <p class="font-black text-lg mt-2 border border-gray-800 rounded bg-gray-100 uppercase tracking-widest">COTIZACIÓN</p>
+                    <p class="font-black text-lg mt-2 border border-gray-800 rounded bg-gray-100 uppercase tracking-widest">COTIZACIÓN #CT-${cot.id.toString().padStart(4,'0')}</p>
                 </div>
                 <div class="text-[10px] mb-4 space-y-1">
-                    <p><b>FECHA:</b> ${fechaCot}</p>
-                    <p><b>VÁLIDA HASTA:</b> ${validez}</p>
-                    <p><b>VENDEDOR:</b> ${db.sesionActiva ? db.sesionActiva.nombre : 'Sistema'}</p>
-                    <p><b>CLIENTE:</b> ${clienteActualPOS.nombre}</p>
+                    <p><b>FECHA:</b> ${cot.fecha}</p>
+                    <p><b>VÁLIDA HASTA:</b> ${cot.validez}</p>
+                    <p><b>VENDEDOR:</b> ${cot.vendedor}</p>
+                    <p><b>CLIENTE:</b> ${cot.cliente}</p>
                 </div>
                 <div class="border-t border-b border-dashed border-gray-400 py-3 mb-4 min-h-[100px]">
                     <div class="flex justify-between text-[10px] font-bold mb-2"><span>CANT DESCRIPCIÓN</span><span>IMPORTE</span></div>
                     ${itemsHtml}
                 </div>
                 <div class="space-y-1 text-xs mb-4">
-                    <div class="flex justify-between"><span>SUBTOTAL:</span><span>S/ ${(totalActual / 1.18).toFixed(2)}</span></div>
-                    <div class="flex justify-between"><span>IGV (18%):</span><span>S/ ${(totalActual - (totalActual / 1.18)).toFixed(2)}</span></div>
-                    <div class="flex justify-between font-black text-sm mt-2 border-t border-gray-300 pt-2"><span>TOTAL COTIZADO:</span><span>S/ ${totalActual.toFixed(2)}</span></div>
+                    <div class="flex justify-between"><span>SUBTOTAL:</span><span>S/ ${(cot.total / 1.18).toFixed(2)}</span></div>
+                    <div class="flex justify-between"><span>IGV (18%):</span><span>S/ ${(cot.total - (cot.total / 1.18)).toFixed(2)}</span></div>
+                    <div class="flex justify-between font-black text-sm mt-2 border-t border-gray-300 pt-2"><span>TOTAL COTIZADO:</span><span>S/ ${cot.total.toFixed(2)}</span></div>
                 </div>
                 <div class="text-center text-[10px] mt-4">
-                    <p class="font-bold mb-1 text-gray-500">* Precios referenciales. Esta proforma no separa stock del inventario.</p>
-                    <p class="mt-2 font-bold">¡Te esperamos pronto en Canimoda!</p>
+                    <p class="font-bold mb-1 text-gray-500">* Precios referenciales. No separa stock.</p>
                 </div>
             </div>
-            <div class="mt-6 flex justify-center gap-4 hidden-print">
-                <button onclick="window.print()" class="bg-gray-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-black transition-colors"><i class="fas fa-print mr-2"></i>Imprimir Cotización</button>
+            <div class="mt-6 flex flex-col gap-3 hidden-print">
+                <button onclick="window.print()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-colors flex items-center justify-center gap-2"><i class="fas fa-print text-lg"></i> Imprimir Cotización</button>
+                <a href="https://wa.me/?text=${waText}" target="_blank" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"><i class="fab fa-whatsapp text-xl"></i> Enviar por WhatsApp</a>
             </div>
         `, null, null);
     };
 
+    window.verHistorialCotizaciones = function() {
+        if(!db.cotizaciones || db.cotizaciones.length === 0) return mostrarToast('No hay cotizaciones guardadas', 'info');
+
+        let htmlLista = db.cotizaciones.slice().reverse().map(c => `
+            <div class="bg-gray-50 border border-gray-200 p-4 rounded-xl mb-3 flex justify-between items-center hover:shadow-md transition-shadow">
+                <div>
+                    <p class="font-black text-gray-900 text-sm">CT-${c.id.toString().padStart(4,'0')} <span class="font-normal text-xs text-gray-500 ml-2">${c.fecha.split(',')[0]}</span></p>
+                    <p class="text-xs font-bold text-gray-700 mt-1"><i class="fas fa-user text-gray-400 mr-1"></i> ${c.cliente}</p>
+                    <p class="text-blue-600 font-black text-sm mt-1">S/ ${c.total.toFixed(2)}</p>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button onclick="mostrarCotizacionObj(${c.id})" class="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-gray-100 flex items-center justify-center gap-2"><i class="fas fa-eye text-blue-500"></i> Ver / Enviar</button>
+                    <button onclick="eliminarCotizacion(${c.id})" class="text-red-500 text-[10px] font-bold hover:underline text-right mt-1">Eliminar</button>
+                </div>
+            </div>
+        `).join('');
+
+        abrirModal('Historial de Cotizaciones', `
+            <div class="max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                ${htmlLista}
+            </div>
+        `, 'Cerrar', cerrarModal);
+    };
+
+    window.mostrarCotizacionObj = function(id) {
+        const cot = db.cotizaciones.find(c => c.id === id);
+        if(cot) mostrarCotizacion(cot);
+    };
+
+    window.eliminarCotizacion = function(id) {
+        if(confirm('¿Eliminar esta cotización del historial de forma permanente?')) {
+            db.cotizaciones = db.cotizaciones.filter(c => c.id !== id);
+            guardarDB();
+            verHistorialCotizaciones();
+        }
+    };
+
+    // ==========================================
+    // EXPORTAR Y REPORTES
+    // ==========================================
     window.exportarExcel = function() {
         if (!db.ventasHistorial || db.ventasHistorial.length === 0) return mostrarToast('No hay datos para exportar', 'error');
 
@@ -1412,6 +1482,9 @@
     function iniciarCobro() {
         if(carrito.length === 0) return mostrarToast('El carrito está vacío', 'error');
 
+        // AQUÍ SE TOMA EL NOMBRE LIBRE QUE EL CLIENTE ESCRIBIÓ EN LA CAJITA
+        const nombreClienteReal = document.getElementById('pos-cliente-input').value.trim() || 'Público en General';
+
         let recibido = totalActual;
         let fechaVenc = null;
         let estadoPago = 'Pagado';
@@ -1438,7 +1511,7 @@
             const nuevaVenta = {
                 id: newId,
                 fecha: new Date().toLocaleString('es-PE'),
-                cliente: clienteActualPOS.nombre,
+                cliente: nombreClienteReal,  // <--- SE GUARDA CON EL NOMBRE QUE PUSISTE
                 vendedor: db.sesionActiva ? db.sesionActiva.nombre : 'Sistema',
                 metodo: metodoPagoActual,
                 total: totalActual,
@@ -1530,6 +1603,21 @@
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
 
+        // ==========================================
+        // NUEVO: TEXTO ARMADO PARA WHATSAPP
+        // ==========================================
+        let waText = `¡Hola ${v.cliente}! 🐾%0AEsta es tu boleta de *${db.empresa.nombre}*:%0A%0A`;
+        v.items.forEach(i => {
+            waText += `- ${i.qty}x ${i.nombre} (Talla: ${i.talla}) -> S/ ${(i.precioAplicado * i.qty).toFixed(2)}%0A`;
+        });
+        waText += `%0A*TOTAL: S/ ${v.total.toFixed(2)}*%0A`;
+
+        if ((v.metodo === 'Crédito' || v.estado === 'Pendiente') && v.recibido > 0) {
+            waText += `*A CUENTA: S/ ${v.recibido.toFixed(2)}*%0A`;
+            waText += `*SALDO PENDIENTE: S/ ${(v.total - v.recibido).toFixed(2)}*%0A`;
+        }
+        waText += `%0A¡Gracias por engreír a tu peludito! 🐶`;
+
         abrirModal('Detalle de Venta', `
                 <div class="max-w-[300px] mx-auto bg-white p-6 shadow-sm border border-gray-200 ticket-termico font-mono text-gray-800 relative">
                     ${v.anulada ? '<div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10"><span class="transform -rotate-45 text-4xl font-black text-red-500 opacity-30 border-4 border-red-500 p-2 rounded tracking-widest uppercase">Anulado</span></div>' : ''}
@@ -1551,7 +1639,12 @@
                     </div>
                     <div class="text-center text-[10px]"><p class="font-bold mb-1">¡Gracias por engreír a tu peludito!</p><p>Sistema CaniSys</p></div>
                 </div>
-                <div class="mt-6 flex justify-center gap-4 hidden-print"><button onclick="window.print()" class="bg-gray-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-black transition-colors"><i class="fas fa-print mr-2"></i>Imprimir</button></div>
+
+                <!-- BOTONES DE ACCIÓN AÑADIDOS -->
+                <div class="mt-6 flex flex-col gap-3 hidden-print">
+                    <button onclick="window.print()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-colors flex items-center justify-center gap-2"><i class="fas fa-print text-lg"></i> Imprimir Ticket</button>
+                    <a href="https://wa.me/?text=${waText}" target="_blank" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"><i class="fab fa-whatsapp text-xl"></i> Enviar por WhatsApp</a>
+                </div>
             `, null, null);
     }
 
@@ -1857,64 +1950,64 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- COLUMNA DEUDAS -->
-        <div>
-        <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2"><i class="fas fa-exclamation-circle mr-1"></i> Deudas Pendientes (Falta S/ ${totalDeuda.toFixed(2)})</p>
-        <div class="bg-white border border-gray-200 rounded-xl p-2 shadow-inner max-h-40 overflow-y-auto custom-scrollbar">${htmlDeudas}</div>
-        </div>
-            <!-- COLUMNA HISTORIAL COMPLETO -->
-        <div>
-        <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2"><i class="fas fa-shopping-bag mr-1"></i> Historial de Compras</p>
-        <div class="bg-gray-50 border border-gray-200 rounded-xl overflow-y-auto max-h-40 shadow-inner custom-scrollbar">${htmlHistorial}</div>
-        </div>
-        </div>
+                <div>
+                    <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-2"><i class="fas fa-exclamation-circle mr-1"></i> Deudas Pendientes (Falta S/ ${totalDeuda.toFixed(2)})</p>
+                    <div class="bg-white border border-gray-200 rounded-xl p-2 shadow-inner max-h-40 overflow-y-auto custom-scrollbar">${htmlDeudas}</div>
+                </div>
+                <!-- COLUMNA HISTORIAL COMPLETO -->
+                <div>
+                    <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2"><i class="fas fa-shopping-bag mr-1"></i> Historial de Compras</p>
+                    <div class="bg-gray-50 border border-gray-200 rounded-xl overflow-y-auto max-h-40 shadow-inner custom-scrollbar">${htmlHistorial}</div>
+                </div>
+            </div>
         `, 'Cerrar Perfil', cerrarModal);
     }
 
     function btnAgregarClienteB2C(id) {
         let c = id ? db.clientesB2C.find(x => x.id === id) : null;
         abrirModal(c ? 'Editar Mascota y Dueño' : 'Registrar Nuevo Cliente', `
-        <div class="space-y-4">
-        <input type="hidden" id="mod-id" value="${c ? c.id : ''}">
-        <div class="grid grid-cols-2 gap-4">
-        <div>
-        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">DNI</label>
-        <div class="flex gap-2">
-        <input id="mod-b2c-dni" value="${c ? _q(c.dni) : ''}" type="text" maxlength="8" oninput="limitDniLength(this)" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none">
-        <button type="button" id="btn-reniec-mod-b2c-dni" onclick="consultarRENIEC('mod-b2c-dni', 'mod-b2c-nom')" class="bg-blue-100 text-blue-600 px-4 rounded-xl hover:bg-blue-600 hover:text-white transition-colors"><i class="fas fa-search"></i></button>
-        </div>
-        </div>
-        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Teléfono (WP)</label><input id="mod-b2c-tel" value="${c ? _q(c.tel) : ''}" type="text" maxlength="9" oninput="limitPhoneLength(this)" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none"></div>
-        </div>
-        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del Dueño *</label><input id="mod-b2c-nom" value="${c ? _q(c.nombre) : ''}" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none capitalize"></div>
-        <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre de Mascota y Raza</label><input id="mod-b2c-mas" value="${c ? _q(c.mascota) : ''}" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none capitalize"></div>
-        </div>
+            <div class="space-y-4">
+                <input type="hidden" id="mod-id" value="${c ? c.id : ''}">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">DNI</label>
+                        <div class="flex gap-2">
+                            <input id="mod-b2c-dni" value="${c ? _q(c.dni) : ''}" type="text" maxlength="8" oninput="limitDniLength(this)" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none">
+                            <button type="button" id="btn-reniec-mod-b2c-dni" onclick="consultarRENIEC('mod-b2c-dni', 'mod-b2c-nom')" class="bg-blue-100 text-blue-600 px-4 rounded-xl hover:bg-blue-600 hover:text-white transition-colors"><i class="fas fa-search"></i></button>
+                        </div>
+                    </div>
+                    <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Teléfono (WP)</label><input id="mod-b2c-tel" value="${c ? _q(c.tel) : ''}" type="text" maxlength="9" oninput="limitPhoneLength(this)" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none"></div>
+                </div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del Dueño *</label><input id="mod-b2c-nom" value="${c ? _q(c.nombre) : ''}" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none capitalize"></div>
+                <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre de Mascota y Raza</label><input id="mod-b2c-mas" value="${c ? _q(c.mascota) : ''}" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none capitalize"></div>
+            </div>
         `, 'Guardar Cliente', () => {
-        const nom = document.getElementById('mod-b2c-nom').value.trim();
-        if(!nom) { mostrarToast('El Nombre es obligatorio', 'error'); throw new Error(); }
+            const nom = document.getElementById('mod-b2c-nom').value.trim();
+            if(!nom) { mostrarToast('El Nombre es obligatorio', 'error'); throw new Error(); }
 
-        const newObj = {
-        id: document.getElementById('mod-id').value ? parseInt(document.getElementById('mod-id').value) : Date.now(),
-        nombre: nom,
-        dni: document.getElementById('mod-b2c-dni').value.trim(),
-        tel: document.getElementById('mod-b2c-tel').value.trim(),
-        mascota: document.getElementById('mod-b2c-mas').value.trim()
-        };
+            const newObj = {
+                id: document.getElementById('mod-id').value ? parseInt(document.getElementById('mod-id').value) : Date.now(),
+                nombre: nom,
+                dni: document.getElementById('mod-b2c-dni').value.trim(),
+                tel: document.getElementById('mod-b2c-tel').value.trim(),
+                mascota: document.getElementById('mod-b2c-mas').value.trim()
+            };
 
-        if(document.getElementById('mod-id').value) {
-        const idx = db.clientesB2C.findIndex(x => x.id === newObj.id);
-        if(idx > -1) db.clientesB2C[idx] = newObj;
-        } else {
-        db.clientesB2C.push(newObj);
-        }
+            if(document.getElementById('mod-id').value) {
+                const idx = db.clientesB2C.findIndex(x => x.id === newObj.id);
+                if(idx > -1) db.clientesB2C[idx] = newObj;
+            } else {
+                db.clientesB2C.push(newObj);
+            }
 
-        guardarDB();
-        guardarClienteNube(newObj, 'B2C');
-        cerrarModal();
-        mostrarToast('Cliente guardado', 'success');
+            guardarDB();
+            guardarClienteNube(newObj, 'B2C');
+            cerrarModal();
+            mostrarToast('Cliente guardado', 'success');
         });
-        }
+    }
 
-        function btnAgregarClienteB2B(id) {
+    function btnAgregarClienteB2B(id) {
         let c = id ? db.clientesB2B.find(x => x.id === id) : null;
         abrirModal(c ? 'Editar Tienda Aliada' : 'Añadir Tienda Aliada', `
             <div class="space-y-4">
@@ -1933,32 +2026,32 @@
                 </div>
             </div>
         `, 'Guardar Tienda', () => {
-        const raz = document.getElementById('mod-b2b-raz').value.trim();
-        if(!raz) { mostrarToast('Razón social obligatoria', 'error'); throw new Error(); }
+            const raz = document.getElementById('mod-b2b-raz').value.trim();
+            if(!raz) { mostrarToast('Razón social obligatoria', 'error'); throw new Error(); }
 
-        const newObj = {
-        id: document.getElementById('mod-id').value ? parseInt(document.getElementById('mod-id').value) : Date.now(),
-        razonSocial: raz,
-        ruc: document.getElementById('mod-b2b-ruc').value.trim(),
-        tel: document.getElementById('mod-b2b-tel').value.trim(),
-        contacto: document.getElementById('mod-b2b-con').value.trim()
-        };
+            const newObj = {
+                id: document.getElementById('mod-id').value ? parseInt(document.getElementById('mod-id').value) : Date.now(),
+                razonSocial: raz,
+                ruc: document.getElementById('mod-b2b-ruc').value.trim(),
+                tel: document.getElementById('mod-b2b-tel').value.trim(),
+                contacto: document.getElementById('mod-b2b-con').value.trim()
+            };
 
-        if(document.getElementById('mod-id').value) {
-        const idx = db.clientesB2B.findIndex(x => x.id === newObj.id);
-        if(idx > -1) db.clientesB2B[idx] = newObj;
-        } else {
-        db.clientesB2B.push(newObj);
-        }
+            if(document.getElementById('mod-id').value) {
+                const idx = db.clientesB2B.findIndex(x => x.id === newObj.id);
+                if(idx > -1) db.clientesB2B[idx] = newObj;
+            } else {
+                db.clientesB2B.push(newObj);
+            }
 
-        guardarDB();
-        guardarClienteNube(newObj, 'B2B');
-        cerrarModal();
-        mostrarToast('Tienda guardada', 'success');
+            guardarDB();
+            guardarClienteNube(newObj, 'B2B');
+            cerrarModal();
+            mostrarToast('Tienda guardada', 'success');
         });
-        }
+    }
 
-        function btnAgregarUsuario() {
+    function btnAgregarUsuario() {
         abrirModal('Añadir Nuevo Personal', `
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
@@ -1981,34 +2074,34 @@
                 <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña (Mín. 6) *</label><input id="mod-usu-pas" type="password" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none"></div>
             </div>
         `, 'Crear Usuario', () => {
-        const nom = document.getElementById('mod-usu-nom').value.trim();
-        const dni = document.getElementById('mod-usu-dni').value.trim();
-        const cor = document.getElementById('mod-usu-cor').value.trim();
-        const pas = document.getElementById('mod-usu-pas').value.trim();
-        const rol = document.getElementById('mod-usu-rol').value;
+            const nom = document.getElementById('mod-usu-nom').value.trim();
+            const dni = document.getElementById('mod-usu-dni').value.trim();
+            const cor = document.getElementById('mod-usu-cor').value.trim();
+            const pas = document.getElementById('mod-usu-pas').value.trim();
+            const rol = document.getElementById('mod-usu-rol').value;
 
-        if(!nom || !cor || !pas) { mostrarToast('Completa campos obligatorios', 'error'); throw new Error(); }
-        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cor)) { mostrarToast('Correo inválido', 'error'); throw new Error(); }
-        if(pas.length < 6) { mostrarToast('Clave muy corta', 'error'); throw new Error(); }
-        if(db.usuarios.some(u => u.correo === cor)) { mostrarToast('Correo ya existe', 'error'); throw new Error(); }
+            if(!nom || !cor || !pas) { mostrarToast('Completa campos obligatorios', 'error'); throw new Error(); }
+            if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cor)) { mostrarToast('Correo inválido', 'error'); throw new Error(); }
+            if(pas.length < 6) { mostrarToast('Clave muy corta', 'error'); throw new Error(); }
+            if(db.usuarios.some(u => u.correo === cor)) { mostrarToast('Correo ya existe', 'error'); throw new Error(); }
 
-        const nuevoUsu = { id: Date.now(), nombre: nom, dni: dni, correo: cor, pass: pas, rol: rol };
-        db.usuarios.push(nuevoUsu);
-        guardarDB();
+            const nuevoUsu = { id: Date.now(), nombre: nom, dni: dni, correo: cor, pass: pas, rol: rol };
+            db.usuarios.push(nuevoUsu);
+            guardarDB();
 
-        const usuMySQL = { nombre: nom, dni: dni, correo: cor, pass: pas, rol: rol };
+            const usuMySQL = { nombre: nom, dni: dni, correo: cor, pass: pas, rol: rol };
 
-        fetch('/api/usuarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(usuMySQL)
-        }).catch(error => console.error("Error MySQL:", error));
+            fetch('/api/usuarios', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(usuMySQL)
+            }).catch(error => console.error("Error MySQL:", error));
 
-        cerrarModal();
+            cerrarModal();
         });
-        }
+    }
 
-        function btnEditarEmpresa() {
+    function btnEditarEmpresa() {
         abrirModal('Datos de Canimoda', `
             <div class="space-y-4">
                 <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Razón Social</label><input id="mod-emp-nom" value="${_q(db.empresa.nombre)}" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none"></div>
@@ -2018,159 +2111,159 @@
                 <div><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Dirección Completa</label><input id="mod-emp-dir" value="${_q(db.empresa.dir)}" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-3 px-4 font-bold focus:border-blue-500 outline-none"></div>
             </div>
         `, 'Guardar Cambios', () => {
-        const nom = document.getElementById('mod-emp-nom').value.trim();
-        if(nom === '') { mostrarToast('La razón social es obligatoria', 'error'); throw new Error(); }
-        db.empresa.nombre = nom;
-        db.empresa.ruc = document.getElementById('mod-emp-ruc').value.trim();
-        db.empresa.dir = document.getElementById('mod-emp-dir').value.trim();
-        guardarDB();
-        cerrarModal();
-        mostrarToast('Datos de empresa actualizados', 'success');
+            const nom = document.getElementById('mod-emp-nom').value.trim();
+            if(nom === '') { mostrarToast('La razón social es obligatoria', 'error'); throw new Error(); }
+            db.empresa.nombre = nom;
+            db.empresa.ruc = document.getElementById('mod-emp-ruc').value.trim();
+            db.empresa.dir = document.getElementById('mod-emp-dir').value.trim();
+            guardarDB();
+            cerrarModal();
+            mostrarToast('Datos de empresa actualizados', 'success');
         });
-        }
+    }
 
-        function renderizarDatos() {
+    function renderizarDatos() {
         try {
-        db.productos.forEach(p => {
-        if(!p.variantes || p.variantes.length === 0) {
-        p.variantes = [{talla: p.talla || 'Única', precio: p.precio || 0, precioMayor: p.precioMayor || p.precio || 0, stock: p.stock || 0}];
-        }
-        });
+            db.productos.forEach(p => {
+                if(!p.variantes || p.variantes.length === 0) {
+                    p.variantes = [{talla: p.talla || 'Única', precio: p.precio || 0, precioMayor: p.precioMayor || p.precio || 0, stock: p.stock || 0}];
+                }
+            });
 
-        const sesion = db.sesionActiva || db.usuarios[0];
-        const esAdmin = sesion ? sesion.rol.includes('Administrador') : false;
+            const sesion = db.sesionActiva || db.usuarios[0];
+            const esAdmin = sesion ? sesion.rol.includes('Administrador') : false;
 
-        if(sesion) {
-        const sideNombre = document.getElementById('side-nombre'); if(sideNombre) sideNombre.innerText = sesion.nombre.split(' ')[0];
-        const sideRol = document.getElementById('side-rol'); if(sideRol) sideRol.innerText = sesion.rol;
-        const inicial = sesion.nombre.charAt(0).toUpperCase(); document.querySelectorAll('.ui-inicial-usuario').forEach(el => el.innerText = inicial);
-        }
+            if(sesion) {
+                const sideNombre = document.getElementById('side-nombre'); if(sideNombre) sideNombre.innerText = sesion.nombre.split(' ')[0];
+                const sideRol = document.getElementById('side-rol'); if(sideRol) sideRol.innerText = sesion.rol;
+                const inicial = sesion.nombre.charAt(0).toUpperCase(); document.querySelectorAll('.ui-inicial-usuario').forEach(el => el.innerText = inicial);
+            }
 
-        document.querySelectorAll('.logo-empresa').forEach(img => {
-        img.src = (db.empresa && db.empresa.logo) ? db.empresa.logo : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-        });
+            document.querySelectorAll('.logo-empresa').forEach(img => {
+                img.src = (db.empresa && db.empresa.logo) ? db.empresa.logo : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+            });
 
-        const btnConfig = document.getElementById('btn-config');
-        const dashIngresosContainer = document.getElementById('dash-ingresos-container');
-        if(!esAdmin) {
-        if(btnConfig) btnConfig.style.display = 'none';
-        if(dashIngresosContainer) dashIngresosContainer.innerHTML = '<i class="fas fa-lock text-gray-300 text-2xl" title="Acceso restringido"></i>';
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-        } else {
-        if(btnConfig) btnConfig.style.display = 'flex';
-        document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
-        }
+            const btnConfig = document.getElementById('btn-config');
+            const dashIngresosContainer = document.getElementById('dash-ingresos-container');
+            if(!esAdmin) {
+                if(btnConfig) btnConfig.style.display = 'none';
+                if(dashIngresosContainer) dashIngresosContainer.innerHTML = '<i class="fas fa-lock text-gray-300 text-2xl" title="Acceso restringido"></i>';
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            } else {
+                if(btnConfig) btnConfig.style.display = 'flex';
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+            }
 
-        if(db.empresa) {
-        const empNom = document.getElementById('emp-nombre'); if(empNom) empNom.innerText = db.empresa.nombre;
-        const empRuc = document.getElementById('emp-ruc'); if(empRuc) empRuc.innerText = db.empresa.ruc || 'S/N';
-        const empDir = document.getElementById('emp-dir'); if(empDir) empDir.innerText = db.empresa.dir || 'S/N';
-        const txtEmpresaLogin = document.getElementById('txt-empresa-login'); if(txtEmpresaLogin) txtEmpresaLogin.innerText = db.empresa.nombre;
-        }
+            if(db.empresa) {
+                const empNom = document.getElementById('emp-nombre'); if(empNom) empNom.innerText = db.empresa.nombre;
+                const empRuc = document.getElementById('emp-ruc'); if(empRuc) empRuc.innerText = db.empresa.ruc || 'S/N';
+                const empDir = document.getElementById('emp-dir'); if(empDir) empDir.innerText = db.empresa.dir || 'S/N';
+                const txtEmpresaLogin = document.getElementById('txt-empresa-login'); if(txtEmpresaLogin) txtEmpresaLogin.innerText = db.empresa.nombre;
+            }
 
-        const hoyDate = new Date();
-        const hoyStr = hoyDate.toLocaleDateString('es-PE');
-        const mesActualStr = (hoyDate.getMonth() + 1).toString().padStart(2, '0');
-        const anioActualStr = hoyDate.getFullYear().toString();
+            const hoyDate = new Date();
+            const hoyStr = hoyDate.toLocaleDateString('es-PE');
+            const mesActualStr = (hoyDate.getMonth() + 1).toString().padStart(2, '0');
+            const anioActualStr = hoyDate.getFullYear().toString();
 
             // Ingresos Hoy
-        const ventasHoy = db.ventasHistorial.filter(v => {
-        if(v.anulada) return false;
-        const vDateStr = v.fecha.split(',')[0].trim();
-        return vDateStr === hoyStr || vDateStr === hoyDate.toLocaleDateString('en-GB');
-        });
-        let ingresosHoy = ventasHoy.reduce((acc, v) => acc + v.total, 0);
-        if(esAdmin && document.getElementById('dash-ingresos')) {
-        document.getElementById('dash-ingresos').innerText = ingresosHoy.toFixed(2);
-        }
+            const ventasHoy = db.ventasHistorial.filter(v => {
+                if(v.anulada) return false;
+                const vDateStr = v.fecha.split(',')[0].trim();
+                return vDateStr === hoyStr || vDateStr === hoyDate.toLocaleDateString('en-GB');
+            });
+            let ingresosHoy = ventasHoy.reduce((acc, v) => acc + v.total, 0);
+            if(esAdmin && document.getElementById('dash-ingresos')) {
+                document.getElementById('dash-ingresos').innerText = ingresosHoy.toFixed(2);
+            }
 
-        const metaDiaria = 500;
-        const pctMeta = Math.min(100, Math.round((ingresosHoy / metaDiaria) * 100));
-        const metaBar = document.getElementById('dash-meta-bar');
-        const metaPct = document.getElementById('dash-meta-pct');
-        if(metaBar && metaPct) {
-        metaBar.style.width = pctMeta + '%';
-        metaPct.innerText = pctMeta + '%';
-        if(pctMeta >= 100) { metaBar.classList.add('from-green-400', 'to-green-600'); metaBar.classList.remove('from-blue-400', 'to-blue-600'); metaPct.classList.add('text-green-600'); metaPct.classList.remove('text-blue-600'); }
-        }
+            const metaDiaria = 500;
+            const pctMeta = Math.min(100, Math.round((ingresosHoy / metaDiaria) * 100));
+            const metaBar = document.getElementById('dash-meta-bar');
+            const metaPct = document.getElementById('dash-meta-pct');
+            if(metaBar && metaPct) {
+                metaBar.style.width = pctMeta + '%';
+                metaPct.innerText = pctMeta + '%';
+                if(pctMeta >= 100) { metaBar.classList.add('from-green-400', 'to-green-600'); metaBar.classList.remove('from-blue-400', 'to-blue-600'); metaPct.classList.add('text-green-600'); metaPct.classList.remove('text-blue-600'); }
+            }
 
             // Ingresos del Mes
-        const ventasMes = db.ventasHistorial.filter(v => {
-        if(v.anulada) return false;
-        const parts = v.fecha.split(',')[0].trim().split('/');
-        if(parts.length === 3) {
-        return parts[1].padStart(2, '0') === mesActualStr && parts[2] === anioActualStr;
-        }
-        return false;
-        });
-        const ingresosMes = ventasMes.reduce((acc, v) => acc + v.total, 0);
-        if(document.getElementById('dash-mes')) {
-        document.getElementById('dash-mes').innerText = ingresosMes.toFixed(2);
-        }
+            const ventasMes = db.ventasHistorial.filter(v => {
+                if(v.anulada) return false;
+                const parts = v.fecha.split(',')[0].trim().split('/');
+                if(parts.length === 3) {
+                    return parts[1].padStart(2, '0') === mesActualStr && parts[2] === anioActualStr;
+                }
+                return false;
+            });
+            const ingresosMes = ventasMes.reduce((acc, v) => acc + v.total, 0);
+            if(document.getElementById('dash-mes')) {
+                document.getElementById('dash-mes').innerText = ingresosMes.toFixed(2);
+            }
 
             // Mejor Cliente del Mes
-        let clientesMap = {};
-        let productosMap = {};
+            let clientesMap = {};
+            let productosMap = {};
 
-        ventasMes.forEach(v => {
-        if(v.cliente !== 'Público en General') {
-        clientesMap[v.cliente] = (clientesMap[v.cliente] || 0) + v.total;
-        }
-        v.items.forEach(i => {
-        productosMap[i.nombre] = (productosMap[i.nombre] || 0) + i.qty;
-        });
-        });
+            ventasMes.forEach(v => {
+                if(v.cliente !== 'Público en General') {
+                    clientesMap[v.cliente] = (clientesMap[v.cliente] || 0) + v.total;
+                }
+                v.items.forEach(i => {
+                    productosMap[i.nombre] = (productosMap[i.nombre] || 0) + i.qty;
+                });
+            });
 
-        let mejorCliente = "No hay datos";
-        let maxCompra = 0;
-        for(let cli in clientesMap) {
-        if(clientesMap[cli] > maxCompra) {
-        maxCompra = clientesMap[cli];
-        mejorCliente = cli;
-        }
-        }
-        if(document.getElementById('dash-mejor-cliente')) {
-        document.getElementById('dash-mejor-cliente').innerText = mejorCliente;
-        document.getElementById('dash-mejor-cliente-monto').innerText = `Ha gastado S/ ${maxCompra.toFixed(2)}`;
-        }
+            let mejorCliente = "No hay datos";
+            let maxCompra = 0;
+            for(let cli in clientesMap) {
+                if(clientesMap[cli] > maxCompra) {
+                    maxCompra = clientesMap[cli];
+                    mejorCliente = cli;
+                }
+            }
+            if(document.getElementById('dash-mejor-cliente')) {
+                document.getElementById('dash-mejor-cliente').innerText = mejorCliente;
+                document.getElementById('dash-mejor-cliente-monto').innerText = `Ha gastado S/ ${maxCompra.toFixed(2)}`;
+            }
 
             // Llenar Widget Productos Estrella en Dashboard
-        const widgetTopProd = document.getElementById('widget-top-productos');
-        if(widgetTopProd) {
-        const topProductos = Object.entries(productosMap).sort((a,b) => b[1] - a[1]).slice(0, 3);
-        if(topProductos.length > 0) {
-        widgetTopProd.innerHTML = topProductos.map((p, idx) => `
+            const widgetTopProd = document.getElementById('widget-top-productos');
+            if(widgetTopProd) {
+                const topProductos = Object.entries(productosMap).sort((a,b) => b[1] - a[1]).slice(0, 3);
+                if(topProductos.length > 0) {
+                    widgetTopProd.innerHTML = topProductos.map((p, idx) => `
                         <div class="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100">
                             <span class="font-bold text-gray-800 text-xs truncate max-w-[150px]"><span class="text-blue-500 mr-1">#${idx+1}</span> ${p[0]}</span>
                             <span class="font-black text-blue-700 text-xs">${p[1]} und</span>
                         </div>
                     `).join('') + `<p class="text-[9px] text-gray-400 mt-2 text-center underline">Click en panel para ver Top 5</p>`;
-        } else {
-        widgetTopProd.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">Aún no hay ventas este mes.</p>';
-        }
-        }
+                } else {
+                    widgetTopProd.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">Aún no hay ventas este mes.</p>';
+                }
+            }
 
-        const dashProd = document.getElementById('dash-productos'); if(dashProd) dashProd.innerText = db.productos.length;
-        const dashB2c = document.getElementById('dash-b2c'); if(dashB2c) dashB2c.innerText = db.clientesB2C.length;
-        const dashB2b = document.getElementById('dash-b2b'); if(dashB2b) dashB2b.innerText = db.clientesB2B.length;
+            const dashProd = document.getElementById('dash-productos'); if(dashProd) dashProd.innerText = db.productos.length;
+            const dashB2c = document.getElementById('dash-b2c'); if(dashB2c) dashB2c.innerText = db.clientesB2C.length;
+            const dashB2b = document.getElementById('dash-b2b'); if(dashB2b) dashB2b.innerText = db.clientesB2B.length;
 
             // WIDGET DEUDAS
-        const widgetDeudas = document.getElementById('widget-deudas');
-        const badgeDeudas = document.getElementById('badge-deudas-total');
-        if(widgetDeudas && badgeDeudas) {
-        const deudas = db.ventasHistorial.filter(v => v.estado === 'Pendiente' && !v.anulada);
-        const totalDeuda = deudas.reduce((sum, v) => sum + (v.total - (v.recibido || 0)), 0);
-        badgeDeudas.innerText = `S/ ${totalDeuda.toFixed(2)}`;
+            const widgetDeudas = document.getElementById('widget-deudas');
+            const badgeDeudas = document.getElementById('badge-deudas-total');
+            if(widgetDeudas && badgeDeudas) {
+                const deudas = db.ventasHistorial.filter(v => v.estado === 'Pendiente' && !v.anulada);
+                const totalDeuda = deudas.reduce((sum, v) => sum + (v.total - (v.recibido || 0)), 0);
+                badgeDeudas.innerText = `S/ ${totalDeuda.toFixed(2)}`;
 
-        if(deudas.length > 0) {
-        deudas.sort((a,b) => new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento));
+                if(deudas.length > 0) {
+                    deudas.sort((a,b) => new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento));
 
-        widgetDeudas.innerHTML = deudas.map(d => {
-        const hoy = new Date(); const venc = new Date(d.fechaVencimiento);
-        const vencido = venc < hoy;
-        const colorClass = vencido ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600' : 'bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-600';
-        const deudaRestante = d.total - (d.recibido || 0);
-        return `
+                    widgetDeudas.innerHTML = deudas.map(d => {
+                        const hoy = new Date(); const venc = new Date(d.fechaVencimiento);
+                        const vencido = venc < hoy;
+                        const colorClass = vencido ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600' : 'bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-600';
+                        const deudaRestante = d.total - (d.recibido || 0);
+                        return `
                         <div class="flex justify-between items-center ${colorClass} transition-colors p-3 rounded-xl border">
                             <div class="overflow-hidden">
                                 <p class="text-sm font-black text-gray-900 line-clamp-1">${d.cliente}</p>
@@ -2185,50 +2278,50 @@
                                 </div>
                             </div>
                         </div>`;
-        }).join('');
-        } else {
-        widgetDeudas.innerHTML = '<div class="text-center text-gray-400 py-6 fade-in"><i class="fas fa-laugh-beam text-4xl mb-3 text-green-400 opacity-50"></i><p class="text-sm font-bold">Sin cuentas pendientes</p></div>';
-        }
-        }
+                    }).join('');
+                } else {
+                    widgetDeudas.innerHTML = '<div class="text-center text-gray-400 py-6 fade-in"><i class="fas fa-laugh-beam text-4xl mb-3 text-green-400 opacity-50"></i><p class="text-sm font-bold">Sin cuentas pendientes</p></div>';
+                }
+            }
 
-        const widgetStock = document.getElementById('widget-stock-critico');
-        if(widgetStock) {
-        let stockBajoHTML = '';
-        db.productos.forEach(p => {
-        if (p.variantes) {
-        p.variantes.forEach(v => {
-        if(v.stock <= 5) {
-        stockBajoHTML += `
+            const widgetStock = document.getElementById('widget-stock-critico');
+            if(widgetStock) {
+                let stockBajoHTML = '';
+                db.productos.forEach(p => {
+                    if (p.variantes) {
+                        p.variantes.forEach(v => {
+                            if(v.stock <= 5) {
+                                stockBajoHTML += `
                                     <div class="flex justify-between items-center bg-yellow-50 hover:bg-yellow-100 transition-colors p-3 rounded-xl border border-yellow-200">
                                         <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm"><i class="fas ${p.icon} text-yellow-500 text-sm"></i></div>
                                         <div><p class="text-xs font-bold text-gray-800 line-clamp-1">${p.nombre}</p><p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Talla: ${v.talla}</p></div></div>
                                         <span class="font-black text-yellow-700 bg-white px-2 py-1 rounded-lg text-xs shadow-sm border border-yellow-300">Qd: ${v.stock}</span>
                                     </div>
                                 `;
-        }
-        });
-        }
-        });
-        widgetStock.innerHTML = stockBajoHTML || '<div class="text-center text-gray-400 py-6 fade-in"><i class="fas fa-check-circle text-4xl mb-3 text-green-400 opacity-50"></i><p class="text-sm font-bold">Inventario a tope</p></div>';
-        }
+                            }
+                        });
+                    }
+                });
+                widgetStock.innerHTML = stockBajoHTML || '<div class="text-center text-gray-400 py-6 fade-in"><i class="fas fa-check-circle text-4xl mb-3 text-green-400 opacity-50"></i><p class="text-sm font-bold">Inventario a tope</p></div>';
+            }
 
-        const gridTienda = document.getElementById('grid-tienda');
-        if(gridTienda) {
-        gridTienda.innerHTML = db.productos.map(p => {
-        const vars = p.variantes && p.variantes.length > 0 ? p.variantes : [{precio:0, precioMayor:0, stock:0}];
-        const totalStock = vars.reduce((sum, v) => sum + v.stock, 0);
-        const precios = vars.map(v => v.precio);
-        const minPrice = Math.min(...precios);
-        const maxPrice = Math.max(...precios);
-        const priceText = minPrice === maxPrice ? `S/ ${minPrice.toFixed(2)}` : `S/ ${minPrice.toFixed(2)} - ${maxPrice.toFixed(2)}`;
+            const gridTienda = document.getElementById('grid-tienda');
+            if(gridTienda) {
+                gridTienda.innerHTML = db.productos.map(p => {
+                    const vars = p.variantes && p.variantes.length > 0 ? p.variantes : [{precio:0, precioMayor:0, stock:0}];
+                    const totalStock = vars.reduce((sum, v) => sum + v.stock, 0);
+                    const precios = vars.map(v => v.precio);
+                    const minPrice = Math.min(...precios);
+                    const maxPrice = Math.max(...precios);
+                    const priceText = minPrice === maxPrice ? `S/ ${minPrice.toFixed(2)}` : `S/ ${minPrice.toFixed(2)} - ${maxPrice.toFixed(2)}`;
 
-        const badge = totalStock > 5 ? 'bg-green-100 text-green-700' : (totalStock > 0 ? 'bg-yellow-100 text-yellow-700 animate-pulse' : 'bg-red-100 text-red-700');
-        const imgHTML = p.img ? `<img src="${p.img}" class="w-full h-full object-cover rounded-2xl group-hover:scale-110 transition-transform duration-500">` : `<i class="fas ${p.icon} text-4xl text-gray-300"></i>`;
-        const btnAdmin = esAdmin ? `<div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10"><button onclick="btnAgregarProducto(${p.id})" class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-edit text-sm"></i></button><button onclick="eliminarObj('productos', ${p.id})" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-trash text-sm"></i></button></div>` : '';
+                    const badge = totalStock > 5 ? 'bg-green-100 text-green-700' : (totalStock > 0 ? 'bg-yellow-100 text-yellow-700 animate-pulse' : 'bg-red-100 text-red-700');
+                    const imgHTML = p.img ? `<img src="${p.img}" class="w-full h-full object-cover rounded-2xl group-hover:scale-110 transition-transform duration-500">` : `<i class="fas ${p.icon} text-4xl text-gray-300"></i>`;
+                    const btnAdmin = esAdmin ? `<div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10"><button onclick="btnAgregarProducto(${p.id})" class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-edit text-sm"></i></button><button onclick="eliminarObj('productos', ${p.id})" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-trash text-sm"></i></button></div>` : '';
 
-        let tallasHTML = vars.map(v => `<span class="bg-gray-100 text-gray-500 text-[9px] px-1.5 py-0.5 rounded mr-1 mb-1 inline-block">${v.talla} (${v.stock})</span>`).join('');
+                    let tallasHTML = vars.map(v => `<span class="bg-gray-100 text-gray-500 text-[9px] px-1.5 py-0.5 rounded mr-1 mb-1 inline-block">${v.talla} (${v.stock})</span>`).join('');
 
-        return `<div class="inv-card bg-white border border-gray-200 rounded-3xl p-6 shadow-sm hover:shadow-lg transition-all relative group fade-in" data-categoria="${p.cat}">
+                    return `<div class="inv-card bg-white border border-gray-200 rounded-3xl p-6 shadow-sm hover:shadow-lg transition-all relative group fade-in" data-categoria="${p.cat}">
                             ${btnAdmin}
                             <div class="w-full h-40 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 overflow-hidden relative border border-gray-100">${imgHTML}</div>
                             <div class="flex justify-between items-center mb-1"><span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${p.cat}</span></div>
@@ -2236,49 +2329,49 @@
                             <div class="mt-2 mb-2 min-h-[30px]">${tallasHTML}</div>
                             <div class="flex justify-between items-center pt-3 border-t border-gray-100"><span class="font-black text-lg text-blue-600">${priceText}</span><span class="text-[10px] font-bold px-2 py-1 rounded-md ${badge}">Total: ${totalStock}</span></div>
                         </div>`;
-        }).join('');
-        }
+                }).join('');
+            }
 
-        const gridPOS = document.getElementById('grid-pos');
-        if(gridPOS) {
-        gridPOS.innerHTML = db.productos.map(p => {
-        const vars = p.variantes && p.variantes.length > 0 ? p.variantes : [{precio:0, precioMayor:0, stock:0}];
-        const totalStock = vars.reduce((sum, v) => sum + v.stock, 0);
-        const dis = totalStock <= 0 ? 'opacity-50 grayscale cursor-not-allowed relative' : 'hover:border-blue-500 hover:shadow-md cursor-pointer relative';
-        const action = totalStock > 0 ? `onclick="abrirSelectorTalla(${p.id})"` : '';
-        const imgHTML = p.img ? `<img src="${p.img}" class="w-full h-full object-cover">` : `<i class="fas ${p.icon} text-gray-400 group-hover:text-blue-500 transition-colors"></i>`;
-        const agotadoBadge = totalStock <= 0 ? `<div class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"><span class="bg-red-600 text-white font-black px-3 py-1 rounded-lg border-2 border-white transform -rotate-12 shadow-lg tracking-widest uppercase text-xs">AGOTADO</span></div>` : '';
+            const gridPOS = document.getElementById('grid-pos');
+            if(gridPOS) {
+                gridPOS.innerHTML = db.productos.map(p => {
+                    const vars = p.variantes && p.variantes.length > 0 ? p.variantes : [{precio:0, precioMayor:0, stock:0}];
+                    const totalStock = vars.reduce((sum, v) => sum + v.stock, 0);
+                    const dis = totalStock <= 0 ? 'opacity-50 grayscale cursor-not-allowed relative' : 'hover:border-blue-500 hover:shadow-md cursor-pointer relative';
+                    const action = totalStock > 0 ? `onclick="abrirSelectorTalla(${p.id})"` : '';
+                    const imgHTML = p.img ? `<img src="${p.img}" class="w-full h-full object-cover">` : `<i class="fas ${p.icon} text-gray-400 group-hover:text-blue-500 transition-colors"></i>`;
+                    const agotadoBadge = totalStock <= 0 ? `<div class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"><span class="bg-red-600 text-white font-black px-3 py-1 rounded-lg border-2 border-white transform -rotate-12 shadow-lg tracking-widest uppercase text-xs">AGOTADO</span></div>` : '';
 
-        const precioMostrar = modoPrecioPOS === 'mayor' && vars[0].precioMayor ? vars[0].precioMayor : vars[0].precio;
-        const rangeIndicator = vars.length > 1 ? '+' : '';
+                    const precioMostrar = modoPrecioPOS === 'mayor' && vars[0].precioMayor ? vars[0].precioMayor : vars[0].precio;
+                    const rangeIndicator = vars.length > 1 ? '+' : '';
 
-        return `<div ${action} class="pos-card bg-white border-2 border-gray-100 rounded-2xl p-4 transition-all group select-none ${dis}" data-categoria="${p.cat}">
+                    return `<div ${action} class="pos-card bg-white border-2 border-gray-100 rounded-2xl p-4 transition-all group select-none ${dis}" data-categoria="${p.cat}">
                             ${agotadoBadge}
                             <div class="flex justify-between items-start mb-3"><div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center overflow-hidden border border-gray-100">${imgHTML}</div><span class="text-[10px] font-bold px-2 py-1 rounded-lg ${totalStock>0?'bg-gray-100 text-gray-600':'bg-red-100 text-red-600'}">Tot: ${totalStock}</span></div>
                             <h4 class="font-bold text-gray-800 text-[11px] mb-1 line-clamp-2 leading-snug">${p.nombre}</h4>
                             <p class="text-[9px] text-gray-400 mb-1">${vars.length} tallas</p>
                             <span class="font-black text-lg text-gray-900 block mt-1 text-blue-600">S/ ${precioMostrar.toFixed(2)}${rangeIndicator}</span>
                         </div>`;
-        }).join('');
-        }
+                }).join('');
+            }
 
-        const gridB2C = document.getElementById('grid-b2c');
-        if(gridB2C) {
-        gridB2C.innerHTML = db.clientesB2C.map(c => {
-        const btnAdmin = esAdmin ? `<div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10"><button onclick="btnAgregarClienteB2C(${c.id})" class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-edit text-sm"></i></button><button onclick="eliminarObj('clientesB2C', ${c.id})" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-trash text-sm"></i></button></div>` : '';
-        return `<div class="b2c-card bg-white border border-gray-200 rounded-3xl p-6 flex flex-col shadow-sm relative group hover:shadow-md transition-shadow fade-in">
+            const gridB2C = document.getElementById('grid-b2c');
+            if(gridB2C) {
+                gridB2C.innerHTML = db.clientesB2C.map(c => {
+                    const btnAdmin = esAdmin ? `<div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10"><button onclick="btnAgregarClienteB2C(${c.id})" class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-edit text-sm"></i></button><button onclick="eliminarObj('clientesB2C', ${c.id})" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-trash text-sm"></i></button></div>` : '';
+                    return `<div class="b2c-card bg-white border border-gray-200 rounded-3xl p-6 flex flex-col shadow-sm relative group hover:shadow-md transition-shadow fade-in">
                             ${btnAdmin}
                             <div class="flex items-center gap-4 mb-4"><div class="w-14 h-14 bg-gradient-to-tr from-green-600 to-green-400 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-md">${c.nombre.charAt(0)}</div><div class="pr-6"><h4 class="font-bold text-gray-900 text-lg leading-tight truncate" title="${c.nombre}">${c.nombre}</h4><p class="text-[10px] text-gray-500 font-bold mt-1"><i class="fas fa-id-card mr-1"></i>${c.dni || 'S/D'} | <i class="fab fa-whatsapp mr-1 ml-1 text-green-500"></i><span onclick="abrirWhatsappBase('${c.tel}')" class="cursor-pointer hover:text-green-600 font-bold transition-colors">${c.tel || 'S/N'}</span></p></div></div>
                             <div class="bg-gray-50 rounded-xl p-3 flex items-center justify-between border border-gray-100 mt-auto"><div class="flex items-center gap-2"><i class="fas fa-paw text-green-500"></i><span class="text-sm font-bold text-gray-700">${c.mascota || 'Sin mascota'}</span></div><button onclick="verPerfilCliente('${c.nombre}', 'B2C')" class="bg-gray-900 text-white text-[10px] px-3 py-1.5 rounded-lg hover:bg-black transition-colors font-bold tracking-wide active:scale-95">Ver Perfil</button></div>
                         </div>`
-        }).join('');
-        }
+                }).join('');
+            }
 
-        const gridB2B = document.getElementById('grid-b2b');
-        if(gridB2B) {
-        gridB2B.innerHTML = db.clientesB2B.map(c => {
-        const btnAdmin = esAdmin ? `<div class="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10"><button onclick="btnAgregarClienteB2B(${c.id})" class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-edit text-sm"></i></button><button onclick="eliminarObj('clientesB2B', ${c.id})" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-trash text-sm"></i></button></div>` : '';
-        return `<div class="b2b-card bg-white border border-gray-200 rounded-3xl p-8 relative hover:shadow-md hover:border-orange-500 transition-all overflow-hidden group fade-in">
+            const gridB2B = document.getElementById('grid-b2b');
+            if(gridB2B) {
+                gridB2B.innerHTML = db.clientesB2B.map(c => {
+                    const btnAdmin = esAdmin ? `<div class="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10"><button onclick="btnAgregarClienteB2B(${c.id})" class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-edit text-sm"></i></button><button onclick="eliminarObj('clientesB2B', ${c.id})" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm"><i class="fas fa-trash text-sm"></i></button></div>` : '';
+                    return `<div class="b2b-card bg-white border border-gray-200 rounded-3xl p-8 relative hover:shadow-md hover:border-orange-500 transition-all overflow-hidden group fade-in">
                             <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform"><i class="fas fa-building text-9xl"></i></div>
                             ${btnAdmin}
                             <div class="flex justify-between items-start mb-4 relative z-10"><span class="bg-orange-100 text-orange-700 border border-orange-200 text-[10px] font-bold px-3 py-1 rounded-md tracking-widest uppercase">Tienda Aliada</span></div>
@@ -2286,12 +2379,12 @@
                             <p class="text-xs text-gray-500 font-bold mb-4 relative z-10"><i class="fas fa-file-invoice mr-1"></i> RUC: ${c.ruc || 'S/D'}</p>
                             <div class="bg-gray-50 rounded-xl p-3 flex items-center justify-between border border-gray-100 relative z-10 mt-auto"><div class="flex items-center gap-2"><i class="fas fa-user-tie text-orange-500"></i><span class="text-sm font-bold text-gray-700 line-clamp-1 w-24" title="${c.contacto}">${c.contacto || 'Sin contacto'}</span></div><button onclick="verPerfilCliente('${c.razonSocial}', 'B2B')" class="bg-gray-900 text-white text-[10px] px-3 py-1.5 rounded-lg hover:bg-black transition-colors font-bold tracking-wide active:scale-95">Ver Perfil</button></div>
                         </div>`;
-        }).join('');
-        }
+                }).join('');
+            }
 
-        const listaUsu = document.getElementById('lista-usuarios');
-        if (listaUsu && esAdmin) {
-        listaUsu.innerHTML = db.usuarios.map(u => `
+            const listaUsu = document.getElementById('lista-usuarios');
+            if (listaUsu && esAdmin) {
+                listaUsu.innerHTML = db.usuarios.map(u => `
                         <div class="bg-gray-50 border border-gray-100 p-4 rounded-xl flex justify-between items-center transition-colors hover:border-gray-300">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">${u.nombre.charAt(0)}</div>
@@ -2300,53 +2393,53 @@
                             ${db.sesionActiva && u.id !== db.sesionActiva.id ? `<button onclick="eliminarObj('usuarios', ${u.id})" class="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><i class="fas fa-trash"></i></button>` : `<span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-1 rounded-md">Tú</span>`}
                         </div>
                     `).join('');
-        }
+            }
 
             // LÓGICA DE TABLA REPORTES
-        const tablaRep = document.getElementById('tabla-reportes');
-        if(tablaRep) {
-        let htmlRep = '';
-        let totVentas = 0, totAnuladas = 0, cantTickets = 0;
-        let totEfectivo = 0, totTarjeta = 0, totYape = 0, totPlin = 0, totCredito = 0;
+            const tablaRep = document.getElementById('tabla-reportes');
+            if(tablaRep) {
+                let htmlRep = '';
+                let totVentas = 0, totAnuladas = 0, cantTickets = 0;
+                let totEfectivo = 0, totTarjeta = 0, totYape = 0, totPlin = 0, totCredito = 0;
 
-        let ventasProcesar = [...db.ventasHistorial].reverse();
+                let ventasProcesar = [...db.ventasHistorial].reverse();
 
-        const filtroF = document.getElementById('filtro-fecha-rep');
-        const filtroM = document.getElementById('filtro-metodo-rep');
+                const filtroF = document.getElementById('filtro-fecha-rep');
+                const filtroM = document.getElementById('filtro-metodo-rep');
 
-        if (filtroF && filtroF.value) {
-        ventasProcesar = ventasProcesar.filter(v => {
-        const datePart = v.fecha.split(',')[0].trim();
-        const parts = datePart.split('/');
-        if(parts.length === 3) {
-        const vFormateada = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        return vFormateada === filtroF.value;
-        }
-        return false;
-        });
-        }
+                if (filtroF && filtroF.value) {
+                    ventasProcesar = ventasProcesar.filter(v => {
+                        const datePart = v.fecha.split(',')[0].trim();
+                        const parts = datePart.split('/');
+                        if(parts.length === 3) {
+                            const vFormateada = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            return vFormateada === filtroF.value;
+                        }
+                        return false;
+                    });
+                }
 
-        if (filtroM && filtroM.value) {
-        ventasProcesar = ventasProcesar.filter(v => v.metodo === filtroM.value);
-        }
+                if (filtroM && filtroM.value) {
+                    ventasProcesar = ventasProcesar.filter(v => v.metodo === filtroM.value);
+                }
 
-        ventasProcesar.forEach(v => {
-        if(v.anulada) {
-        totAnuladas += v.total;
-        } else {
-        totVentas += v.total;
-        cantTickets++;
+                ventasProcesar.forEach(v => {
+                    if(v.anulada) {
+                        totAnuladas += v.total;
+                    } else {
+                        totVentas += v.total;
+                        cantTickets++;
 
-        let ingresoReal = v.metodo === 'Crédito' ? (v.recibido || 0) : v.total;
-        if (v.metodo === 'Efectivo') totEfectivo += ingresoReal;
-        else if (v.metodo === 'Tarjeta') totTarjeta += ingresoReal;
-        else if (v.metodo === 'Yape') totYape += ingresoReal;
-        else if (v.metodo === 'Plin') totPlin += ingresoReal;
-        else if (v.metodo === 'Crédito') totCredito += ingresoReal;
-        }
-        const bgStatus = v.anulada ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
-        const txtStatus = v.anulada ? 'Anulada' : 'Completada';
-        htmlRep += `<tr class="rep-row hover:bg-gray-50 transition-colors border-b border-gray-50 ${v.anulada ? 'opacity-60' : ''}">
+                        let ingresoReal = v.metodo === 'Crédito' ? (v.recibido || 0) : v.total;
+                        if (v.metodo === 'Efectivo') totEfectivo += ingresoReal;
+                        else if (v.metodo === 'Tarjeta') totTarjeta += ingresoReal;
+                        else if (v.metodo === 'Yape') totYape += ingresoReal;
+                        else if (v.metodo === 'Plin') totPlin += ingresoReal;
+                        else if (v.metodo === 'Crédito') totCredito += ingresoReal;
+                    }
+                    const bgStatus = v.anulada ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
+                    const txtStatus = v.anulada ? 'Anulada' : 'Completada';
+                    htmlRep += `<tr class="rep-row hover:bg-gray-50 transition-colors border-b border-gray-50 ${v.anulada ? 'opacity-60' : ''}">
                             <td class="p-5"><p class="font-bold text-gray-900">TK-${v.id.toString().padStart(6,'0')}</p><p class="text-[10px] text-gray-500">${v.fecha}</p></td>
                             <td class="p-5"><p class="font-bold text-gray-800">${v.cliente}</p><p class="text-[10px] text-gray-500">Por: ${v.vendedor}</p></td>
                             <td class="p-5 text-center"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${bgStatus}">${txtStatus} / ${v.metodo}</span></td>
@@ -2356,190 +2449,191 @@
                                 ${!v.anulada ? `<button onclick="anularVenta(${v.id})" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-colors" title="Anular"><i class="fas fa-ban"></i></button>` : ''}
                             </td>
                         </tr>`;
-        });
-        tablaRep.innerHTML = htmlRep || `<tr><td colspan="5" class="p-10 text-center text-gray-400"><i class="fas fa-calendar-times text-3xl mb-2"></i><p class="font-bold">No hay ventas con esos filtros</p></td></tr>`;
+                });
+                tablaRep.innerHTML = htmlRep || `<tr><td colspan="5" class="p-10 text-center text-gray-400"><i class="fas fa-calendar-times text-3xl mb-2"></i><p class="font-bold">No hay ventas con esos filtros</p></td></tr>`;
 
-        const lblTot = document.getElementById('lbl-kpi-total'); if(lblTot) lblTot.innerText = (filtroM && filtroM.value) ? `Total ${filtroM.value}` : `Total Vendido`;
-        const kpiTot = document.getElementById('kpi-total'); if(kpiTot) kpiTot.innerText = 'S/ ' + totVentas.toFixed(2);
-        const kpiTck = document.getElementById('kpi-tickets'); if(kpiTck) kpiTck.innerText = cantTickets;
-        const kpiAnu = document.getElementById('kpi-anulados'); if(kpiAnu) kpiAnu.innerText = 'S/ ' + totAnuladas.toFixed(2);
+                const lblTot = document.getElementById('lbl-kpi-total'); if(lblTot) lblTot.innerText = (filtroM && filtroM.value) ? `Total ${filtroM.value}` : `Total Vendido`;
+                const kpiTot = document.getElementById('kpi-total'); if(kpiTot) kpiTot.innerText = 'S/ ' + totVentas.toFixed(2);
+                const kpiTck = document.getElementById('kpi-tickets'); if(kpiTck) kpiTck.innerText = cantTickets;
+                const kpiAnu = document.getElementById('kpi-anulados'); if(kpiAnu) kpiAnu.innerText = 'S/ ' + totAnuladas.toFixed(2);
 
-        const repEf = document.getElementById('rep-efectivo'); if(repEf) repEf.innerText = 'S/ ' + totEfectivo.toFixed(2);
-        const repTa = document.getElementById('rep-tarjeta'); if(repTa) repTa.innerText = 'S/ ' + totTarjeta.toFixed(2);
-        const repYa = document.getElementById('rep-yape'); if(repYa) repYa.innerText = 'S/ ' + totYape.toFixed(2);
-        const repPl = document.getElementById('rep-plin'); if(repPl) repPl.innerText = 'S/ ' + totPlin.toFixed(2);
-        const repCr = document.getElementById('rep-credito'); if(repCr) repCr.innerText = 'S/ ' + totCredito.toFixed(2);
-        }
+                const repEf = document.getElementById('rep-efectivo'); if(repEf) repEf.innerText = 'S/ ' + totEfectivo.toFixed(2);
+                const repTa = document.getElementById('rep-tarjeta'); if(repTa) repTa.innerText = 'S/ ' + totTarjeta.toFixed(2);
+                const repYa = document.getElementById('rep-yape'); if(repYa) repYa.innerText = 'S/ ' + totYape.toFixed(2);
+                const repPl = document.getElementById('rep-plin'); if(repPl) repPl.innerText = 'S/ ' + totPlin.toFixed(2);
+                const repCr = document.getElementById('rep-credito'); if(repCr) repCr.innerText = 'S/ ' + totCredito.toFixed(2);
+            }
 
         } catch(e) { console.error("Error al renderizar datos visuales:", e); }
-        }
+    }
 
-        window.sincronizarProductosNube = async function() {
+    window.sincronizarProductosNube = async function() {
         try {
-        const response = await fetch('/api/productos');
+            const response = await fetch('/api/productos');
 
-        if (response.ok) {
-        const productosNube = await response.json();
-        let productosAgrupados = {};
+            if (response.ok) {
+                const productosNube = await response.json();
+                let productosAgrupados = {};
 
-        const getProp = (obj, propName) => {
-        const normalizedPropName = propName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const key = Object.keys(obj).find(k => k.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === normalizedPropName);
-        return key ? obj[key] : undefined;
-        };
+                const getProp = (obj, propName) => {
+                    const normalizedPropName = propName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                    const key = Object.keys(obj).find(k => k.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === normalizedPropName);
+                    return key ? obj[key] : undefined;
+                };
 
-        productosNube.forEach(prod => {
-        const pNombre = getProp(prod, 'nombre') || 'Sin Nombre';
-        const pId = getProp(prod, 'id') || Date.now();
+                productosNube.forEach(prod => {
+                    const pNombre = getProp(prod, 'nombre') || 'Sin Nombre';
+                    const pId = getProp(prod, 'id') || Date.now();
 
-        let pCat = getProp(prod, 'categoria');
-        let pIcono = getProp(prod, 'icono');
-        let pImg = getProp(prod, 'imagenurl');
+                    let pCat = getProp(prod, 'categoria');
+                    let pIcono = getProp(prod, 'icono');
+                    let pImg = getProp(prod, 'imagenurl');
 
-        const loc = db.productos.find(x => x.nombre.toLowerCase() === pNombre.toLowerCase());
-        if (loc) {
-        if (!pImg || pImg === 'local_base64') pImg = loc.img;
-        if (!pCat) pCat = loc.cat;
-        if (!pIcono) pIcono = loc.icon;
-        }
+                    const loc = db.productos.find(x => x.nombre.toLowerCase() === pNombre.toLowerCase());
+                    if (loc) {
+                        if (!pImg || pImg === 'local_base64') pImg = loc.img;
+                        if (!pCat) pCat = loc.cat;
+                        if (!pIcono) pIcono = loc.icon;
+                    }
 
-        if(!pCat) pCat = 'Camas';
-        if(!pIcono) pIcono = 'fa-bed';
-        if(!pImg) pImg = '';
+                    if(!pCat) pCat = 'Camas';
+                    if(!pIcono) pIcono = 'fa-bed';
+                    if(!pImg) pImg = '';
 
-        const pTalla = getProp(prod, 'talla') || 'Única';
+                    const pTalla = getProp(prod, 'talla') || 'Única';
 
-        let pPrecio = parseFloat(getProp(prod, 'preciopublico'));
-        if (isNaN(pPrecio) || pPrecio === 0) pPrecio = parseFloat(getProp(prod, 'precio')) || 0;
+                    let pPrecio = parseFloat(getProp(prod, 'preciopublico'));
+                    if (isNaN(pPrecio) || pPrecio === 0) pPrecio = parseFloat(getProp(prod, 'precio')) || 0;
 
-        let pPrecioMayor = parseFloat(getProp(prod, 'preciomayorista'));
-        if (isNaN(pPrecioMayor) || pPrecioMayor === 0) pPrecioMayor = parseFloat(getProp(prod, 'preciomayor')) || 0;
+                    let pPrecioMayor = parseFloat(getProp(prod, 'preciomayorista'));
+                    if (isNaN(pPrecioMayor) || pPrecioMayor === 0) pPrecioMayor = parseFloat(getProp(prod, 'preciomayor')) || 0;
 
-        const pStock = parseInt(getProp(prod, 'stock')) || parseInt(getProp(prod, 'cantidad')) || 0;
+                    const pStock = parseInt(getProp(prod, 'stock')) || parseInt(getProp(prod, 'cantidad')) || 0;
 
-        const keyNombre = pNombre.trim().toUpperCase();
+                    const keyNombre = pNombre.trim().toUpperCase();
 
-        if (!productosAgrupados[keyNombre]) {
-        productosAgrupados[keyNombre] = { id: pId, nombre: pNombre, cat: pCat, icon: pIcono, img: pImg, variantes: [] };
-        }
+                    if (!productosAgrupados[keyNombre]) {
+                        productosAgrupados[keyNombre] = { id: pId, nombre: pNombre, cat: pCat, icon: pIcono, img: pImg, variantes: [] };
+                    }
 
-        let varianteExistente = productosAgrupados[keyNombre].variantes.find(v => String(v.talla).trim().toUpperCase() === String(pTalla).trim().toUpperCase());
+                    let varianteExistente = productosAgrupados[keyNombre].variantes.find(v => String(v.talla).trim().toUpperCase() === String(pTalla).trim().toUpperCase());
 
-        if (varianteExistente) {
-        if (pPrecio > 0) varianteExistente.precio = pPrecio;
-        if (pPrecioMayor > 0) varianteExistente.precioMayor = pPrecioMayor;
-        if (pStock > 0 || pId > varianteExistente.id_db) varianteExistente.stock = pStock;
-        if (pId > varianteExistente.id_db) varianteExistente.id_db = pId;
-        } else {
-        productosAgrupados[keyNombre].variantes.push({ id_db: pId, talla: String(pTalla), precio: pPrecio, precioMayor: pPrecioMayor, stock: pStock });
-        }
-        });
+                    if (varianteExistente) {
+                        if (pPrecio > 0) varianteExistente.precio = pPrecio;
+                        if (pPrecioMayor > 0) varianteExistente.precioMayor = pPrecioMayor;
+                        if (pStock > 0 || pId > varianteExistente.id_db) varianteExistente.stock = pStock;
+                        if (pId > varianteExistente.id_db) varianteExistente.id_db = pId;
+                    } else {
+                        productosAgrupados[keyNombre].variantes.push({ id_db: pId, talla: String(pTalla), precio: pPrecio, precioMayor: pPrecioMayor, stock: pStock });
+                    }
+                });
 
-        Object.values(productosAgrupados).forEach(producto => {
-        producto.variantes.sort((a, b) => String(a.talla).localeCompare(String(b.talla), undefined, { numeric: true, sensitivity: 'base' }));
-        });
+                Object.values(productosAgrupados).forEach(producto => {
+                    producto.variantes.sort((a, b) => String(a.talla).localeCompare(String(b.talla), undefined, { numeric: true, sensitivity: 'base' }));
+                });
 
-        db.productos = Object.values(productosAgrupados);
-        window.renderizarDatos();
-        }
+                db.productos = Object.values(productosAgrupados);
+                window.renderizarDatos();
+            }
         } catch (error) { console.warn('Java apagado o bloqueó conexión. Usando datos locales.', error); }
-        }
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
         try {
-        let savedDB = localStorage.getItem(DB_KEY);
-        if (savedDB) {
-        try {
-        db = JSON.parse(savedDB);
-        if (!db || typeof db !== 'object') throw new Error("Base de datos corrupta");
-        } catch(e) {
-        db = JSON.parse(JSON.stringify(defaultDB));
-        }
-        } else {
-        db = JSON.parse(JSON.stringify(defaultDB));
-        }
+            let savedDB = localStorage.getItem(DB_KEY);
+            if (savedDB) {
+                try {
+                    db = JSON.parse(savedDB);
+                    if (!db || typeof db !== 'object') throw new Error("Base de datos corrupta");
+                } catch(e) {
+                    db = JSON.parse(JSON.stringify(defaultDB));
+                }
+            } else {
+                db = JSON.parse(JSON.stringify(defaultDB));
+            }
 
-        if(!db.empresa) db.empresa = JSON.parse(JSON.stringify(defaultDB.empresa));
-        if(!db.usuarios || !Array.isArray(db.usuarios) || db.usuarios.length === 0) db.usuarios = JSON.parse(JSON.stringify(defaultDB.usuarios));
-        if(!db.productos || !Array.isArray(db.productos)) db.productos = [];
-        if(!db.clientesB2C || !Array.isArray(db.clientesB2C)) db.clientesB2C = [];
-        if(!db.clientesB2B || !Array.isArray(db.clientesB2B)) db.clientesB2B = [];
-        if(!db.ventasHistorial || !Array.isArray(db.ventasHistorial)) db.ventasHistorial = [];
-        if(typeof db.notas === 'undefined') db.notas = '';
+            if(!db.empresa) db.empresa = JSON.parse(JSON.stringify(defaultDB.empresa));
+            if(!db.usuarios || !Array.isArray(db.usuarios) || db.usuarios.length === 0) db.usuarios = JSON.parse(JSON.stringify(defaultDB.usuarios));
+            if(!db.productos || !Array.isArray(db.productos)) db.productos = [];
+            if(!db.clientesB2C || !Array.isArray(db.clientesB2C)) db.clientesB2C = [];
+            if(!db.clientesB2B || !Array.isArray(db.clientesB2B)) db.clientesB2B = [];
+            if(!db.ventasHistorial || !Array.isArray(db.ventasHistorial)) db.ventasHistorial = [];
+            if(!db.cotizaciones || !Array.isArray(db.cotizaciones)) db.cotizaciones = [];
+            if(typeof db.notas === 'undefined') db.notas = '';
 
-        const spanFecha = document.getElementById('fecha-actual');
-        if (spanFecha) spanFecha.textContent = new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const spanFecha = document.getElementById('fecha-actual');
+            if (spanFecha) spanFecha.textContent = new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        document.addEventListener('click', function(event) {
-        const inputCliente = document.getElementById('pos-cliente-input');
-        const dropdown = document.getElementById('pos-cliente-dropdown');
-        if(!inputCliente || !dropdown) return;
-        if (!inputCliente.contains(event.target) && !dropdown.contains(event.target)) dropdown.classList.add('hidden');
-        });
+            document.addEventListener('click', function(event) {
+                const inputCliente = document.getElementById('pos-cliente-input');
+                const dropdown = document.getElementById('pos-cliente-dropdown');
+                if(!inputCliente || !dropdown) return;
+                if (!inputCliente.contains(event.target) && !dropdown.contains(event.target)) dropdown.classList.add('hidden');
+            });
 
-        window.renderizarDatos();
+            window.renderizarDatos();
 
-            // LA MAGIA DE LA NUBE AL ABRIR LA PÁGINA
-        window.sincronizarProductosNube();
-        window.sincronizarClientesNube();
-        window.sincronizarVentasNube(); // <--- AQUÍ SE BAJAN TUS VENTAS
+            // SINCRONIZACIÓN DE LA NUBE
+            window.sincronizarProductosNube();
+            window.sincronizarClientesNube();
+            window.sincronizarVentasNube();
 
-        if (db.sesionActiva) {
-        const vistaLogin = document.getElementById('vista-login');
-        const appContainer = document.getElementById('app-container');
-        if (vistaLogin) vistaLogin.classList.add('hidden', 'opacity-0');
-        if (appContainer) appContainer.classList.remove('vista-oculta');
-        mostrarVista('vista-inicio');
-        }
+            if (db.sesionActiva) {
+                const vistaLogin = document.getElementById('vista-login');
+                const appContainer = document.getElementById('app-container');
+                if (vistaLogin) vistaLogin.classList.add('hidden', 'opacity-0');
+                if (appContainer) appContainer.classList.remove('vista-oculta');
+                mostrarVista('vista-inicio');
+            }
         } catch(e) { console.error("Error crítico al iniciar:", e); }
-        });
+    });
 
-        window.guardarDB = function() {
+    window.guardarDB = function() {
         localStorage.setItem(DB_KEY, JSON.stringify(db));
         window.renderizarDatos();
-        }
+    }
 
-        window.resetearBaseDatos = function() {
+    window.resetearBaseDatos = function() {
         if(confirm("⚠️ ¿Estás COMPLETAMENTE SEGURO de formatear el sistema? Se borrarán todos los peluditos y ventas.")) {
-        localStorage.removeItem(DB_KEY);
-        location.reload();
+            localStorage.removeItem(DB_KEY);
+            location.reload();
         }
-        }
+    }
 
-        window.descargarBackup = function() {
+    window.descargarBackup = function() {
         try {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
-        const enlace = document.createElement('a');
-        enlace.setAttribute("href", dataStr);
-        enlace.setAttribute("download", "Copia_Seguridad_Canimoda.json");
-        document.body.appendChild(enlace);
-        enlace.click();
-        enlace.remove();
-        mostrarToast('Copia de seguridad descargada', 'success');
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const enlace = document.createElement('a');
+            enlace.setAttribute("href", dataStr);
+            enlace.setAttribute("download", "Copia_Seguridad_Canimoda.json");
+            document.body.appendChild(enlace);
+            enlace.click();
+            enlace.remove();
+            mostrarToast('Copia de seguridad descargada', 'success');
         } catch(e) {
-        mostrarToast('Error al descargar', 'error');
+            mostrarToast('Error al descargar', 'error');
         }
-        };
+    };
 
-        window.restaurarBackup = function(event) {
+    window.restaurarBackup = function(event) {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
-        try {
-        const dataRestaurada = JSON.parse(e.target.result);
-        if (dataRestaurada && typeof dataRestaurada === 'object') {
-        db = dataRestaurada;
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-        mostrarToast('¡Mudanza exitosa! Reiniciando...', 'success');
-        setTimeout(() => location.reload(), 1500);
-        }
-        } catch (err) {
-        mostrarToast('El archivo no es válido', 'error');
-        }
+            try {
+                const dataRestaurada = JSON.parse(e.target.result);
+                if (dataRestaurada && typeof dataRestaurada === 'object') {
+                    db = dataRestaurada;
+                    localStorage.setItem(DB_KEY, JSON.stringify(db));
+                    mostrarToast('¡Mudanza exitosa! Reiniciando...', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (err) {
+                mostrarToast('El archivo no es válido', 'error');
+            }
         };
         reader.readAsText(file);
-        };
+    };
 </script>
 </body>
 </html>
