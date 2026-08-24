@@ -1160,7 +1160,7 @@
         btn.disabled = true;
 
         try {
-            const res = await fetch('http://localhost:8080/api/reniec/dni?numero=' + dni);
+            const res = await fetch('/api/reniec/dni?numero=' + dni);
             const data = await res.json();
 
             if (res.ok && data.first_name) {
@@ -1188,7 +1188,7 @@
         btn.disabled = true;
 
         try {
-            const res = await fetch('http://localhost:8080/api/sunat/ruc?numero=' + ruc);
+            const res = await fetch('/api/sunat/ruc?numero=' + ruc);
             const data = await res.json();
 
             if (res.ok && data.razon_social) {
@@ -1693,7 +1693,6 @@
                     <div class="text-center text-[10px]"><p class="font-bold mb-1">¡Gracias por engreír a tu peludito!</p><p>Sistema CaniSys</p></div>
                 </div>
 
-                <!-- BOTONES DE ACCIÓN AÑADIDOS -->
                 <div class="mt-6 flex flex-col gap-3 hidden-print">
                     <button onclick="window.print()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-colors flex items-center justify-center gap-2"><i class="fas fa-print text-lg"></i> Imprimir Ticket</button>
                     <button id="btn-share-img" onclick="compartirComoImagen()" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"><i class="fab fa-whatsapp text-xl"></i> Enviar como Imagen (WhatsApp)</button>
