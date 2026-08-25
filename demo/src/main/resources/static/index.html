@@ -4,10 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CaniSys PRO - Nube Edition</title>
+
+    <!-- Librerías Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Librería para tomar fotos al ticket -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .vista-oculta { display: none !important; }
@@ -26,8 +31,10 @@
 </head>
 <body class="h-screen w-screen overflow-hidden text-gray-800 relative selection:bg-blue-500 selection:text-white">
 
+<!-- Alertas Emergentes -->
 <div id="toast-container" class="fixed top-5 right-5 z-[200] flex flex-col gap-3 pointer-events-none"></div>
 
+<!-- Modal Genérico -->
 <div id="modal-dinamico" class="fixed inset-0 bg-gray-900/60 z-[150] hidden items-center justify-center backdrop-blur-sm transition-opacity opacity-0 duration-300">
     <div class="bg-white rounded-3xl w-full max-w-2xl p-8 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]">
         <div class="flex justify-between items-center mb-6 shrink-0">
@@ -42,7 +49,7 @@
     </div>
 </div>
 
-<!-- LOGIN -->
+<!-- PANTALLA LOGIN -->
 <div id="vista-login" class="flex flex-col md:flex-row w-full h-full bg-white z-[100] absolute inset-0 transition-all duration-700">
     <div class="hidden md:flex flex-col justify-center items-center w-1/2 bg-gray-900 p-12 text-white relative overflow-hidden">
         <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#4b5563_1px,transparent_1px)] [background-size:20px_20px]"></div>
@@ -85,8 +92,9 @@
     </div>
 </div>
 
+<!-- APLICACIÓN PRINCIPAL -->
 <div id="app-container" class="vista-oculta flex h-full w-full">
-    <!-- MENÚ LATERAL -->
+
     <aside class="w-20 md:w-64 bg-gray-900 border-r border-gray-800 flex flex-col justify-between shrink-0 z-20 text-gray-300 transition-all">
         <div>
             <div class="h-20 flex items-center justify-center px-4 border-b border-gray-800 bg-white shadow-inner py-2">
@@ -122,6 +130,7 @@
             <div class="flex items-center gap-4">
                 <span class="text-sm font-semibold text-gray-500 bg-gray-100 px-4 py-1.5 rounded-full shadow-inner" id="fecha-actual"></span>
                 <button onclick="toggleFullScreen()" title="Pantalla Completa" class="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-300 shadow-sm transition-all active:scale-95"><i class="fas fa-expand"></i></button>
+                <button onclick="mostrarVista('vista-perfil')" class="w-10 h-10 bg-gradient-to-tr from-blue-600 to-blue-400 rounded-full flex items-center justify-center text-white font-bold shadow-md hover:scale-105 transition-transform"><span class="ui-inicial-usuario">W</span></button>
             </div>
         </header>
 
@@ -144,11 +153,13 @@
                     <h3 class="text-3xl font-black text-gray-900 relative z-10">S/ <span id="dash-mes">0.00</span></h3>
                 </div>
                 <!-- Mejor Cliente -->
-                <div class="bg-[#fffdf2] p-6 rounded-3xl border border-yellow-200 shadow-sm hover:-translate-y-1 transition-transform relative overflow-hidden cursor-pointer group" onclick="mostrarRanking()">
+                <div class="bg-[#fffdf2] p-6 rounded-3xl border border-yellow-200 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all relative overflow-hidden cursor-pointer group" onclick="mostrarRanking()">
+                    <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><i class="fas fa-crown text-9xl text-yellow-600"></i></div>
                     <div class="flex justify-between items-start mb-2"><div class="w-10 h-10 rounded-xl bg-yellow-400 text-white flex items-center justify-center text-lg relative z-10 shadow-sm"><i class="fas fa-crown"></i></div></div>
                     <p class="text-yellow-800 text-[10px] font-bold uppercase tracking-widest mb-1 relative z-10">Cliente Estrella (Mes)</p>
                     <h3 class="text-xl font-black text-gray-900 relative z-10 line-clamp-1" id="dash-mejor-cliente">N/A</h3>
                     <p class="text-[11px] font-bold text-yellow-600 mt-1 relative z-10" id="dash-mejor-cliente-monto">S/ 0.00</p>
+                    <div class="mt-2 pt-2 border-t border-yellow-200/50 relative z-10 flex items-center gap-1 text-yellow-700 text-[10px] font-bold"><i class="fas fa-chart-line"></i> Ver Ranking &rarr;</div>
                 </div>
                 <!-- Clientes Totales -->
                 <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform cursor-pointer" onclick="mostrarVista('vista-minorista')">
@@ -159,22 +170,16 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <!-- PANEL DE CRÉDITOS Y DEUDAS -->
                 <div class="bg-white p-6 rounded-3xl border border-red-100 shadow-sm col-span-1 lg:col-span-2 h-auto flex flex-col">
-                    <div class="flex justify-between items-center mb-4 shrink-0">
-                        <h3 class="text-gray-800 font-bold text-sm"><i class="fas fa-hand-holding-usd mr-2 text-red-500"></i> Cuentas por Cobrar (Créditos)</h3>
-                        <span class="text-xs font-bold bg-red-100 text-red-600 px-2 py-1 rounded" id="badge-deudas-total">S/ 0.00</span>
-                    </div>
+                    <div class="flex justify-between items-center mb-4 shrink-0"><h3 class="text-gray-800 font-bold text-sm"><i class="fas fa-hand-holding-usd mr-2 text-red-500"></i> Cuentas por Cobrar (Créditos)</h3><span class="text-xs font-bold bg-red-100 text-red-600 px-2 py-1 rounded" id="badge-deudas-total">S/ 0.00</span></div>
                     <div id="widget-deudas" class="space-y-3 overflow-y-auto max-h-[250px] flex-1 custom-scrollbar pr-2"></div>
                 </div>
 
-                <!-- ALERTAS DE STOCK -->
                 <div class="bg-white p-6 rounded-3xl border border-yellow-100 shadow-sm col-span-1 h-auto flex flex-col">
                     <h3 class="text-gray-800 font-bold text-sm mb-4 shrink-0"><i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i> Alerta de Inventario</h3>
                     <div id="widget-stock-critico" class="space-y-3 overflow-y-auto max-h-[250px] flex-1 custom-scrollbar pr-2"></div>
                 </div>
 
-                <!-- ACCIONES RÁPIDAS -->
                 <div class="flex flex-col gap-4 col-span-1">
                     <div class="bg-gradient-to-br from-gray-900 to-gray-800 p-6 rounded-3xl shadow-lg text-white flex-1 relative overflow-hidden group">
                         <h3 class="font-bold text-lg mb-4 text-white relative z-10"><i class="fas fa-user-clock text-blue-400 mr-2"></i>Cierre de Turno</h3>
@@ -190,6 +195,7 @@
                     <div id="widget-ultimas-ventas" class="space-y-3 flex-1 flex flex-col justify-center custom-scrollbar pr-2"></div>
                 </div>
                 <div class="bg-[#fffdf2] p-6 rounded-3xl border border-yellow-200 shadow-sm flex flex-col relative overflow-hidden group min-h-[220px]">
+                    <div class="absolute -bottom-4 -right-4 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500"><i class="fas fa-sticky-note text-9xl text-yellow-600"></i></div>
                     <h3 class="text-yellow-800 font-bold text-sm mb-1 relative z-10"><i class="fas fa-pen text-yellow-600 mr-2"></i>Notas Internas</h3>
                     <p class="text-[10px] text-yellow-600 font-bold uppercase tracking-widest mb-4 relative z-10">Pizarra del Equipo</p>
                     <textarea id="nota-canimoda" oninput="guardarNotaCanimoda(this.value)" class="w-full flex-1 bg-transparent border-none resize-none focus:ring-0 p-0 text-sm font-medium text-yellow-900 placeholder-yellow-600/50 relative z-10 custom-scrollbar" placeholder="Escribe aquí cosas importantes..."></textarea>
@@ -209,7 +215,7 @@
             <header class="pt-6 px-8 pb-4 glass-panel border-b border-gray-200 shrink-0 z-10">
                 <div class="relative w-full">
                     <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                    <input type="text" id="pos-buscar-prod" oninput="debounceFiltrar('pos-buscar-prod', 'grid-pos', 'pos-card')" placeholder="Buscar producto o familia... " class="w-full bg-white border border-gray-300 rounded-xl py-3 pl-11 pr-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm">
+                    <input type="text" id="pos-buscar-prod" oninput="debounceFiltrar('pos-buscar-prod', 'grid-pos', 'pos-card')" placeholder="Buscar producto o familia... " class="w-full bg-white border border-gray-300 rounded-xl py-3 pl-11 pr-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm">
                     <button onclick="document.getElementById('pos-buscar-prod').value=''; debounceFiltrar('pos-buscar-prod', 'grid-pos', 'pos-card');" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"><i class="fas fa-times-circle"></i></button>
                 </div>
                 <div class="flex gap-2 mt-4 overflow-x-auto pb-1 custom-scrollbar">
@@ -530,24 +536,12 @@
 
     function guardarClienteNube(cliente, tipo) {
         const endpoint = tipo === 'B2C' ? 'clientes-b2c' : 'clientes-b2b';
-        fetch(`/api/${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cliente)
-        }).catch(e => console.error("Error enviando cliente a Nube:", e));
+        fetch(`/api/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cliente) }).catch(e => console.error("Error enviando cliente a Nube:", e));
     }
 
     function guardarVentaNube(venta) {
         const ventaNube = { ...venta, itemsJSON: JSON.stringify(venta.items) };
-        fetch('/api/ventas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(ventaNube)
-        })
-            .then(res => {
-                if(res.ok) mostrarToast('¡Magia! Venta subida a Neon ☁️', 'success');
-            })
-            .catch(e => console.error("Error de red", e));
+        fetch('/api/ventas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ventaNube) }).then(res => { if(res.ok) mostrarToast('¡Magia! Venta subida a Neon ☁️', 'success'); }).catch(e => console.error("Error de red", e));
     }
 
     window.sincronizarClientesNube = async function() {
@@ -557,37 +551,19 @@
                 const dataB2C = await resB2C.json();
                 dataB2C.forEach(cNube => {
                     const dniNube = cNube.dni || cNube.Dni;
-                    if (!db.clientesB2C.find(c => c.dni === dniNube)) {
-                        db.clientesB2C.push({
-                            id: cNube.id || cNube.Id || Date.now() + Math.random(),
-                            nombre: cNube.nombre || cNube.Nombre || '',
-                            dni: dniNube,
-                            tel: cNube.telefono || cNube.Telefono || '',
-                            mascota: (cNube.mascota || cNube.Mascota) === 'EMPTY_STRING' ? '' : (cNube.mascota || cNube.Mascota || '')
-                        });
-                    }
+                    if (!db.clientesB2C.find(c => c.dni === dniNube)) { db.clientesB2C.push({ id: cNube.id || cNube.Id || Date.now() + Math.random(), nombre: cNube.nombre || cNube.Nombre || '', dni: dniNube, tel: cNube.telefono || cNube.Telefono || '', mascota: (cNube.mascota || cNube.Mascota) === 'EMPTY_STRING' ? '' : (cNube.mascota || cNube.Mascota || '') }); }
                 });
             }
-
             const resB2B = await fetch('/api/clientes-b2b');
             if (resB2B.ok) {
                 const dataB2B = await resB2B.json();
                 dataB2B.forEach(cNube => {
                     const rucNube = cNube.ruc || cNube.Ruc;
-                    if (!db.clientesB2B.find(c => c.ruc === rucNube)) {
-                        db.clientesB2B.push({
-                            id: cNube.id || cNube.Id || Date.now() + Math.random(),
-                            razonSocial: cNube.razonSocial || cNube.RazonSocial || '',
-                            ruc: rucNube,
-                            tel: cNube.telefono || cNube.Telefono || '',
-                            contacto: cNube.contacto || cNube.Contacto || ''
-                        });
-                    }
+                    if (!db.clientesB2B.find(c => c.ruc === rucNube)) { db.clientesB2B.push({ id: cNube.id || cNube.Id || Date.now() + Math.random(), razonSocial: cNube.razonSocial || cNube.RazonSocial || '', ruc: rucNube, tel: cNube.telefono || cNube.Telefono || '', contacto: cNube.contacto || cNube.Contacto || '' }); }
                 });
             }
-            window.renderizarDatos();
-            localStorage.setItem(DB_KEY, JSON.stringify(db));
-        } catch (error) { console.warn('Modo offline: No se pudo bajar clientes.', error); }
+            window.renderizarDatos(); localStorage.setItem(DB_KEY, JSON.stringify(db));
+        } catch (error) { console.warn('Modo offline: No se pudo bajar clientes de la nube.', error); }
     };
 
     window.sincronizarVentasNube = async function() {
@@ -595,40 +571,15 @@
             const response = await fetch('/api/ventas');
             if (response.ok) {
                 const ventasNube = await response.json();
-                const getProp = (obj, propName) => {
-                    const normalizedPropName = propName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                    const key = Object.keys(obj).find(k => k.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === normalizedPropName);
-                    return key ? obj[key] : undefined;
-                };
-
+                const getProp = (obj, propName) => { const normalizedPropName = propName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(); const key = Object.keys(obj).find(k => k.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === normalizedPropName); return key ? obj[key] : undefined; };
                 ventasNube.forEach(vNube => {
                     const idNube = getProp(vNube, 'id');
                     if (!db.ventasHistorial.find(v => v.id === idNube)) {
-                        let parsedItems = [];
-                        try {
-                            const rawItems = getProp(vNube, 'itemsjson');
-                            if(rawItems) parsedItems = JSON.parse(rawItems);
-                        } catch(e) {}
-
-                        db.ventasHistorial.push({
-                            id: idNube,
-                            fecha: getProp(vNube, 'fecha') || '',
-                            cliente: getProp(vNube, 'cliente') || '',
-                            vendedor: getProp(vNube, 'vendedor') || '',
-                            metodo: getProp(vNube, 'metodo') || '',
-                            total: Number(getProp(vNube, 'total')) || 0,
-                            recibido: Number(getProp(vNube, 'recibido')) || 0,
-                            estado: getProp(vNube, 'estado') || '',
-                            fechaVencimiento: getProp(vNube, 'fechavencimiento') || null,
-                            anulada: getProp(vNube, 'anulada') === true || getProp(vNube, 'anulada') === 'true',
-                            items: parsedItems
-                        });
+                        let parsedItems = []; try { const rawItems = getProp(vNube, 'itemsjson'); if(rawItems) parsedItems = JSON.parse(rawItems); } catch(e) {}
+                        db.ventasHistorial.push({ id: idNube, fecha: getProp(vNube, 'fecha') || '', cliente: getProp(vNube, 'cliente') || '', vendedor: getProp(vNube, 'vendedor') || '', metodo: getProp(vNube, 'metodo') || '', total: Number(getProp(vNube, 'total')) || 0, recibido: Number(getProp(vNube, 'recibido')) || 0, estado: getProp(vNube, 'estado') || '', fechaVencimiento: getProp(vNube, 'fechavencimiento') || null, anulada: getProp(vNube, 'anulada') === true || getProp(vNube, 'anulada') === 'true', items: parsedItems });
                     }
                 });
-
-                db.ventasHistorial.sort((a,b) => a.id - b.id);
-                window.renderizarDatos();
-                localStorage.setItem(DB_KEY, JSON.stringify(db));
+                db.ventasHistorial.sort((a,b) => a.id - b.id); window.renderizarDatos(); localStorage.setItem(DB_KEY, JSON.stringify(db));
             }
         } catch (error) { console.warn('Modo offline: No se pudo bajar ventas.', error); }
     };
@@ -639,13 +590,8 @@
     function autocompletarLogin(email, pass) { document.getElementById('login-email').value = email; document.getElementById('login-pass').value = pass; }
 
     function generarCorteCaja() {
-        const hoyDate = new Date();
-        const hoyStr = hoyDate.toLocaleDateString('es-PE');
-        const ventasHoy = db.ventasHistorial.filter(v => {
-            if(v.anulada) return false;
-            const vDateStr = v.fecha.split(',')[0].trim();
-            return vDateStr === hoyStr || vDateStr === hoyDate.toLocaleDateString('en-GB');
-        });
+        const hoyDate = new Date(); const hoyStr = hoyDate.toLocaleDateString('es-PE');
+        const ventasHoy = db.ventasHistorial.filter(v => { if(v.anulada) return false; const vDateStr = v.fecha.split(',')[0].trim(); return vDateStr === hoyStr || vDateStr === hoyDate.toLocaleDateString('en-GB'); });
 
         const total = ventasHoy.reduce((acc, v) => acc + v.total, 0);
         const yape = ventasHoy.filter(v=>v.metodo==='Yape' || v.metodo==='Plin').reduce((acc, v) => acc + v.total, 0);
@@ -659,14 +605,8 @@
                 <h2 class="text-4xl font-black text-gray-900">S/ ${totalRealRecibido.toFixed(2)}</h2>
                 <p class="text-sm font-bold text-gray-500 uppercase tracking-widest">Ingresos Reales de Hoy</p>
                 <div class="grid grid-cols-2 gap-4 mt-6 text-left">
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                        <p class="text-[10px] font-bold text-blue-500 uppercase mb-1"><i class="fas fa-money-bill-wave mr-1"></i>En Efectivo</p>
-                        <p class="font-black text-xl text-blue-700">S/ ${efectivo.toFixed(2)}</p>
-                    </div>
-                    <div class="bg-purple-50 p-4 rounded-xl border border-purple-100">
-                        <p class="text-[10px] font-bold text-purple-500 uppercase mb-1"><i class="fas fa-mobile-alt mr-1"></i>Yape / Plin / Tarjeta</p>
-                        <p class="font-black text-xl text-purple-700">S/ ${yape.toFixed(2)}</p>
-                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100"><p class="text-[10px] font-bold text-blue-500 uppercase mb-1"><i class="fas fa-money-bill-wave mr-1"></i>En Efectivo</p><p class="font-black text-xl text-blue-700">S/ ${efectivo.toFixed(2)}</p></div>
+                    <div class="bg-purple-50 p-4 rounded-xl border border-purple-100"><p class="text-[10px] font-bold text-purple-500 uppercase mb-1"><i class="fas fa-mobile-alt mr-1"></i>Yape / Plin / Tarjeta</p><p class="font-black text-xl text-purple-700">S/ ${yape.toFixed(2)}</p></div>
                 </div>
                 ${credito > 0 ? `<p class="text-xs font-bold text-red-500 mt-2 text-left bg-red-50 p-2 rounded-lg">*Incluye S/ ${credito.toFixed(2)} pagados como adelanto de deudas.</p>` : ''}
                 <div class="mt-6 pt-4 border-t border-gray-200"><p class="text-xs text-gray-500 font-medium">Tus ventas se mantienen guardadas de forma segura en el Historial.</p></div>
@@ -790,9 +730,7 @@
             canvas.toBlob(async function(blob) {
                 const file = new File([blob], "ticket_canimoda.png", { type: "image/png" });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({ files: [file], title: 'Ticket Canimoda', text: '¡Hola! Aquí tienes tu comprobante de Canimoda 🐾' });
-                    } catch (error) {}
+                    try { await navigator.share({ files: [file], title: 'Ticket Canimoda', text: '¡Hola! Aquí tienes tu comprobante de Canimoda 🐾' }); } catch (error) {}
                 } else {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url; a.download = "ticket_canimoda.png"; a.click();
@@ -839,7 +777,8 @@
                 <div class="text-center border-b border-dashed border-gray-400 pb-4 mb-4">
                     ${logoHtml}
                     <h2 class="font-black text-xl tracking-tighter uppercase">${db.empresa.nombre}</h2>
-                    <p class="text-[10px] mt-1">RUC: ${db.empresa.ruc}</p><p class="text-[10px]">${db.empresa.dir}</p>
+                    <p class="text-[10px] mt-1">RUC: ${db.empresa.ruc}</p>
+                    <p class="text-[10px]">${db.empresa.dir}</p>
                     <p class="font-black text-lg mt-2 border border-gray-800 rounded bg-gray-100 uppercase tracking-widest">PROFORMA #CT-${cot.id.toString().padStart(4,'0')}</p>
                 </div>
                 <div class="text-[10px] mb-4 space-y-1"><p><b>FECHA:</b> ${cot.fecha}</p><p><b>VÁLIDA HASTA:</b> ${cot.validez}</p><p><b>VENDEDOR:</b> ${cot.vendedor}</p><p><b>CLIENTE:</b> ${cot.cliente}</p></div>
@@ -891,7 +830,7 @@
     // EXPORTAR Y REPORTES
     // ==========================================
     window.exportarExcel = function() {
-        if (!db.ventasHistorial || db.ventasHistorial.length === 0) return mostrarToast('No hay datos', 'error');
+        if (!db.ventasHistorial || db.ventasHistorial.length === 0) return mostrarToast('No hay datos para exportar', 'error');
 
         let ventasExportar = [...db.ventasHistorial].reverse();
         const filtroF = document.getElementById('filtro-fecha-rep');
@@ -1548,6 +1487,42 @@
     });
 
     window.guardarDB = function() { localStorage.setItem(DB_KEY, JSON.stringify(db)); window.renderizarDatos(); }
+
+    window.resetearBaseDatos = function() {
+        if(confirm("⚠️ ¿Estás COMPLETAMENTE SEGURO de formatear el sistema? Se borrarán todos los peluditos y ventas.")) {
+            localStorage.removeItem(DB_KEY);
+            location.reload();
+        }
+    }
+
+    window.descargarBackup = function() {
+        try {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const enlace = document.createElement('a');
+            enlace.setAttribute("href", dataStr);
+            enlace.setAttribute("download", "Copia_Seguridad_Canimoda.json");
+            document.body.appendChild(enlace);
+            enlace.click();
+            enlace.remove();
+            mostrarToast('Copia descargada', 'success');
+        } catch(e) { mostrarToast('Error al descargar', 'error'); }
+    };
+
+    window.restaurarBackup = function(event) {
+        const file = event.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const dataRestaurada = JSON.parse(e.target.result);
+                if (dataRestaurada && typeof dataRestaurada === 'object') {
+                    db = dataRestaurada; localStorage.setItem(DB_KEY, JSON.stringify(db));
+                    mostrarToast('¡Restauración exitosa! Reiniciando...', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (err) { mostrarToast('Archivo inválido', 'error'); }
+        };
+        reader.readAsText(file);
+    };
 </script>
 </body>
 </html>
