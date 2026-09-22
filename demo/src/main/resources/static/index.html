@@ -263,7 +263,7 @@
                     <button onclick="cambiarModoPrecio('mayor')" id="btn-precio-mayor" class="flex-1 text-gray-500 rounded-lg py-1.5 text-xs font-bold transition-all hover:text-gray-700"><i class="fas fa-boxes mr-1"></i> Precio por Mayor</button>
                 </div>
 
-                <div class="relative">
+                <div class="relative mb-2">
                     <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Asignar a Cliente (Escribe cualquier nombre o búscalo):</label>
                     <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all shadow-sm">
                         <i class="fas fa-user-tag text-gray-400 text-sm"></i>
@@ -272,19 +272,27 @@
                     </div>
                     <div id="pos-cliente-dropdown" class="absolute w-full bg-white border border-gray-200 rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto hidden z-[100] custom-scrollbar"></div>
                 </div>
+
+                <!-- SECCIÓN ENTREGA -->
+                <div class="mt-2 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                    <label class="block text-[10px] font-bold text-indigo-800 uppercase tracking-widest mb-2 text-center">Tipo de Entrega <i class="fas fa-truck ml-1"></i></label>
+                    <div class="flex bg-white rounded-lg p-1 border border-indigo-200 mb-2">
+                        <button onclick="setTipoEntrega('Tienda')" id="btn-entrega-tienda" class="flex-1 bg-indigo-600 text-white rounded-md py-1.5 text-xs font-bold transition-all shadow-sm"><i class="fas fa-store mr-1"></i> En Tienda</button>
+                        <button onclick="setTipoEntrega('Envío')" id="btn-entrega-envio" class="flex-1 text-gray-500 rounded-md py-1.5 text-xs font-bold transition-all hover:text-indigo-600"><i class="fas fa-motorcycle mr-1"></i> Delivery</button>
+                    </div>
+                    <div id="caja-direccion-envio" class="hidden fade-in mt-2">
+                        <input type="text" id="pos-direccion-envio" placeholder="Ej: Av. Principal 123 - El Tambo" class="w-full bg-white border border-indigo-200 rounded-lg py-2 px-3 text-xs font-bold text-gray-800 focus:outline-none focus:border-indigo-500 shadow-sm">
+                    </div>
+                </div>
             </div>
 
             <!-- ESPACIO AMPLIO PARA LOS PRODUCTOS -->
             <div id="lista-carrito" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50/50 custom-scrollbar"></div>
 
             <div class="border-t border-gray-200 bg-white flex flex-col shrink-0 p-5 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
-                <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-4">
-                    <div class="flex justify-between text-sm font-medium text-gray-500 mb-1"><span>Subtotal</span><span id="texto-subtotal">S/ 0.00</span></div>
-                    <div class="flex justify-between text-sm font-medium text-gray-500 mb-1"><span>IGV (18%)</span><span id="texto-igv">S/ 0.00</span></div>
-                    <div class="flex justify-between items-end pt-3 border-t border-gray-200 border-dashed mt-2">
-                        <span class="text-base font-extrabold text-gray-900 uppercase">Total</span>
-                        <span id="texto-total" class="text-3xl font-black text-blue-600 tracking-tighter">S/ 0.00</span>
-                    </div>
+                <div class="flex justify-between items-end pt-2 pb-4">
+                    <span class="text-base font-extrabold text-gray-900 uppercase">TOTAL VENTA</span>
+                    <span id="texto-total" class="text-4xl font-black text-blue-600 tracking-tighter">S/ 0.00</span>
                 </div>
                 <!-- BOTONES DE ACCIÓN (AHORA EL DE COBRAR ABRE EL MODAL) -->
                 <div class="flex gap-3">
@@ -536,6 +544,7 @@
     let debounceTimer;
 
     let modoPrecioPOS = 'menor';
+    let tipoEntregaActual = 'Tienda'; // NUEVO: Tienda o Envío
 
     // ==========================================
     // 1. FUNCIONES DE UTILIDAD Y SINCRONIZACIÓN NUBE
@@ -659,7 +668,9 @@
                             estado: getProp(vNube, 'estado') || '',
                             fechaVencimiento: getProp(vNube, 'fechavencimiento') || null,
                             anulada: getProp(vNube, 'anulada') === true || getProp(vNube, 'anulada') === 'true',
-                            items: parsedItems
+                            items: parsedItems,
+                            tipoEntrega: getProp(vNube, 'tipoentrega') || 'Tienda',
+                            direccionEntrega: getProp(vNube, 'direccionentrega') || ''
                         });
                     }
                 });
@@ -717,6 +728,26 @@
             </div>
         `, 'Cerrar Resumen', cerrarModal);
     }
+
+    // ==========================================
+    // LÓGICA DE ENVÍOS (NUEVO)
+    // ==========================================
+    window.setTipoEntrega = function(tipo) {
+        tipoEntregaActual = tipo;
+        const btnTienda = document.getElementById('btn-entrega-tienda');
+        const btnEnvio = document.getElementById('btn-entrega-envio');
+        const cajaDir = document.getElementById('caja-direccion-envio');
+
+        if(tipo === 'Tienda') {
+            if(btnTienda) btnTienda.className = 'flex-1 bg-indigo-600 text-white rounded-md py-1.5 text-xs font-bold transition-all shadow-sm';
+            if(btnEnvio) btnEnvio.className = 'flex-1 text-gray-500 rounded-md py-1.5 text-xs font-bold transition-all hover:text-indigo-600 bg-white';
+            if(cajaDir) cajaDir.classList.add('hidden');
+        } else {
+            if(btnEnvio) btnEnvio.className = 'flex-1 bg-indigo-600 text-white rounded-md py-1.5 text-xs font-bold transition-all shadow-sm';
+            if(btnTienda) btnTienda.className = 'flex-1 text-gray-500 rounded-md py-1.5 text-xs font-bold transition-all hover:text-indigo-600 bg-white';
+            if(cajaDir) cajaDir.classList.remove('hidden');
+        }
+    };
 
     // ==========================================
     // NUEVO MODAL DE COBRO (MÁS ESPACIO EN UI)
@@ -878,6 +909,7 @@
         if(carrito.length === 0) return mostrarToast('El carrito está vacío', 'error');
 
         const nombreClienteReal = document.getElementById('pos-cliente-input').value.trim() || 'Público en General';
+        const dirEnvio = document.getElementById('pos-direccion-envio') ? document.getElementById('pos-direccion-envio').value.trim() : '';
 
         const newId = db.cotizaciones.length > 0 ? Math.max(...db.cotizaciones.map(c=>Number(c.id))) + 1 : 1;
         const fechaCot = new Date().toLocaleString('es-PE');
@@ -890,7 +922,9 @@
             cliente: nombreClienteReal,
             vendedor: db.sesionActiva ? db.sesionActiva.nombre : 'Sistema',
             total: totalActual,
-            items: JSON.parse(JSON.stringify(carrito))
+            items: JSON.parse(JSON.stringify(carrito)),
+            tipoEntrega: tipoEntregaActual,
+            direccionEntrega: dirEnvio
         };
 
         db.cotizaciones.push(nuevaCotizacion);
@@ -917,12 +951,17 @@
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
 
-        // CORRECCIÓN WHATSAPP: Añadir precio unitario
+        // CORRECCIÓN WHATSAPP: Añadir precio unitario y no mostrar IGV
         let waText = `¡Hola ${cot.cliente}! 🐾%0AEsta es tu cotización de *${db.empresa.nombre}*:%0A%0A`;
         cot.items.forEach(i => {
             waText += `- ${i.qty}x ${i.nombre} (${i.talla}) [S/ ${i.precioAplicado.toFixed(2)} c/u] -> S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}%0A`;
         });
-        waText += `%0A*TOTAL: S/ ${cot.total.toFixed(2)}*%0A%0A¡Te esperamos pronto! 🐶`;
+        waText += `%0A*TOTAL: S/ ${cot.total.toFixed(2)}*%0A`;
+
+        if (cot.tipoEntrega === 'Envío') {
+            waText += `%0A🛵 *DATOS DE ENVÍO:*%0ADestino: ${cot.direccionEntrega}%0A`;
+        }
+        waText += `%0A¡Te esperamos pronto! 🐶`;
 
         abrirModal('Cotización Generada', `
             <div id="ticket-captura" class="max-w-[300px] mx-auto bg-white p-6 shadow-sm border border-gray-200 ticket-termico font-mono text-gray-800 relative">
@@ -946,9 +985,14 @@
                     </div>
                     ${itemsHtml}
                 </div>
+
+                ${cot.tipoEntrega === 'Envío' ? `
+                <div class="bg-indigo-50 border border-indigo-100 p-2 rounded mb-2 mt-2 text-indigo-800">
+                    <p class="font-bold text-[10px]"><i class="fas fa-motorcycle mr-1"></i> PARA ENVÍO</p>
+                    <p class="text-[9px] mt-0.5">${cot.direccionEntrega}</p>
+                </div>` : ''}
+
                 <div class="space-y-1 text-xs mb-4">
-                    <div class="flex justify-between"><span>SUBTOTAL:</span><span>S/ ${(cot.total / 1.18).toFixed(2)}</span></div>
-                    <div class="flex justify-between"><span>IGV (18%):</span><span>S/ ${(cot.total - (cot.total / 1.18)).toFixed(2)}</span></div>
                     <div class="flex justify-between font-black text-sm mt-2 border-t border-gray-300 pt-2"><span>TOTAL COTIZADO:</span><span>S/ ${cot.total.toFixed(2)}</span></div>
                 </div>
                 <div class="text-center text-[10px] mt-4">
@@ -1605,9 +1649,15 @@
         if(carrito.length === 0) return mostrarToast('El carrito está vacío', 'error');
 
         const nombreClienteReal = document.getElementById('pos-cliente-input').value.trim() || 'Público en General';
+        const dirEnvio = document.getElementById('pos-direccion-envio') ? document.getElementById('pos-direccion-envio').value.trim() : '';
+
         let recibido = totalActual;
         let fechaVenc = null;
         let estadoPago = 'Pagado';
+
+        if (tipoEntregaActual === 'Envío' && !dirEnvio) {
+            return mostrarToast('Ingresa la dirección de envío', 'error');
+        }
 
         if (metodoPagoActual === 'Efectivo') {
             const inputEfectivo = document.getElementById('pos-efectivo-recibido');
@@ -1644,7 +1694,9 @@
                 estado: estadoPago,
                 fechaVencimiento: fechaVenc,
                 items: JSON.parse(JSON.stringify(carrito)),
-                anulada: false
+                anulada: false,
+                tipoEntrega: tipoEntregaActual,
+                direccionEntrega: dirEnvio
             };
 
             db.ventasHistorial.push(nuevaVenta);
@@ -1665,6 +1717,9 @@
             carrito = [];
             limpiarClientePOS();
             actualizarCarritoUI();
+            setTipoEntrega('Tienda');
+            if(document.getElementById('pos-direccion-envio')) document.getElementById('pos-direccion-envio').value = '';
+
             mostrarToast('Venta procesada con éxito', 'success');
 
         } catch(e) {
@@ -1735,12 +1790,16 @@
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
 
-        // CORRECCIÓN WHATSAPP: Añadir precio unitario
+        // CORRECCIÓN WHATSAPP: Añadir precio unitario y no mostrar IGV
         let waText = `¡Hola ${v.cliente}! 🐾%0AEsta es tu boleta de *${db.empresa.nombre}*:%0A%0A`;
         v.items.forEach(i => {
             waText += `- ${i.qty}x ${i.nombre} (${i.talla}) [S/ ${i.precioAplicado.toFixed(2)} c/u] -> S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}%0A`;
         });
         waText += `%0A*TOTAL: S/ ${v.total.toFixed(2)}*%0A`;
+
+        if (v.tipoEntrega === 'Envío') {
+            waText += `%0A🛵 *DATOS DE ENVÍO:*%0ADestino: ${v.direccionEntrega}%0A`;
+        }
 
         if ((v.metodo === 'Crédito' || v.estado === 'Pendiente') && v.recibido > 0) {
             waText += `*A CUENTA: S/ ${v.recibido.toFixed(2)}*%0A`;
@@ -1770,10 +1829,15 @@
                         </div>
                         ${itemsHtml}
                     </div>
+
+                    ${v.tipoEntrega === 'Envío' ? `
+                    <div class="bg-indigo-50 border border-indigo-100 p-2 rounded mb-2 mt-2 text-indigo-800">
+                        <p class="font-bold text-[10px]"><i class="fas fa-motorcycle mr-1"></i> PARA ENVÍO</p>
+                        <p class="text-[9px] mt-0.5">${v.direccionEntrega}</p>
+                    </div>` : ''}
+
                     <div class="space-y-1 text-xs mb-4">
-                        <div class="flex justify-between"><span>SUBTOTAL:</span><span>S/ ${(v.total / 1.18).toFixed(2)}</span></div>
-                        <div class="flex justify-between"><span>IGV (18%):</span><span>S/ ${(v.total - (v.total / 1.18)).toFixed(2)}</span></div>
-                        <div class="flex justify-between font-black text-sm mt-2 border-t border-gray-300 pt-2"><span>TOTAL:</span><span>S/ ${v.total.toFixed(2)}</span></div>
+                        <div class="flex justify-between font-black text-sm mt-2 border-t border-gray-300 pt-2"><span>TOTAL PAGADO:</span><span>S/ ${v.total.toFixed(2)}</span></div>
                         ${(v.metodo === 'Crédito' || v.estado === 'Pendiente') && v.recibido > 0 ? `<div class="flex justify-between font-bold text-gray-700 mt-1"><span>A CUENTA:</span><span>S/ ${v.recibido.toFixed(2)}</span></div><div class="flex justify-between font-black text-red-600 mt-1"><span>SALDO PENDIENTE:</span><span>S/ ${(v.total - v.recibido).toFixed(2)}</span></div>` : ''}
                     </div>
                     <div class="text-[10px] border-t border-dashed border-gray-400 pt-4 mb-6">
