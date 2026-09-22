@@ -251,6 +251,7 @@
             <div class="p-6 overflow-y-auto h-full custom-scrollbar"><div id="grid-pos" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 fade-in"></div></div>
         </div>
 
+        <!-- BARRA LATERAL (CARRITO) MÁS LIMPIA -->
         <aside class="w-[380px] lg:w-[420px] flex flex-col shrink-0 bg-white shadow-2xl z-20 relative">
             <div class="p-5 border-b border-gray-100 bg-white z-20 shrink-0">
                 <div class="flex justify-between items-center mb-4">
@@ -278,10 +279,10 @@
                     <label class="block text-[10px] font-bold text-indigo-800 uppercase tracking-widest mb-2 text-center">Tipo de Entrega <i class="fas fa-truck ml-1"></i></label>
                     <div class="flex bg-white rounded-lg p-1 border border-indigo-200 mb-2">
                         <button onclick="setTipoEntrega('Tienda')" id="btn-entrega-tienda" class="flex-1 bg-indigo-600 text-white rounded-md py-1.5 text-xs font-bold transition-all shadow-sm"><i class="fas fa-store mr-1"></i> En Tienda</button>
-                        <button onclick="setTipoEntrega('Envío')" id="btn-entrega-envio" class="flex-1 text-gray-500 rounded-md py-1.5 text-xs font-bold transition-all hover:text-indigo-600"><i class="fas fa-motorcycle mr-1"></i> Delivery</button>
+                        <button onclick="setTipoEntrega('Envío')" id="btn-entrega-envio" class="flex-1 text-gray-500 rounded-md py-1.5 text-xs font-bold transition-all hover:text-indigo-600"><i class="fas fa-motorcycle mr-1"></i> Envío</button>
                     </div>
                     <div id="caja-direccion-envio" class="hidden fade-in mt-2">
-                        <input type="text" id="pos-direccion-envio" placeholder="Ej: Av. Principal 123 - El Tambo" class="w-full bg-white border border-indigo-200 rounded-lg py-2 px-3 text-xs font-bold text-gray-800 focus:outline-none focus:border-indigo-500 shadow-sm">
+                        <input type="text" id="pos-direccion-envio" placeholder="Ej: Ayacucho, Huancavelica..." class="w-full bg-white border border-indigo-200 rounded-lg py-2 px-3 text-xs font-bold text-gray-800 focus:outline-none focus:border-indigo-500 shadow-sm">
                     </div>
                 </div>
             </div>
@@ -426,7 +427,6 @@
                 </div>
             </div>
 
-            <!-- BOTÓN DE COTIZACIONES MOVIDO AQUI -->
             <div class="mb-4">
                 <button onclick="verHistorialCotizaciones()" class="w-full bg-blue-50 text-blue-700 border border-blue-200 py-4 rounded-xl text-sm font-bold hover:bg-blue-100 transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-sm"><i class="fas fa-file-invoice text-xl"></i> Ver Historial de Cotizaciones (Proformas)</button>
             </div>
@@ -544,7 +544,7 @@
     let debounceTimer;
 
     let modoPrecioPOS = 'menor';
-    let tipoEntregaActual = 'Tienda'; // NUEVO: Tienda o Envío
+    let tipoEntregaActual = 'Tienda';
 
     // ==========================================
     // 1. FUNCIONES DE UTILIDAD Y SINCRONIZACIÓN NUBE
@@ -730,7 +730,7 @@
     }
 
     // ==========================================
-    // LÓGICA DE ENVÍOS (NUEVO)
+    // LÓGICA DE ENVÍOS
     // ==========================================
     window.setTipoEntrega = function(tipo) {
         tipoEntregaActual = tipo;
@@ -750,7 +750,7 @@
     };
 
     // ==========================================
-    // NUEVO MODAL DE COBRO (MÁS ESPACIO EN UI)
+    // NUEVO MODAL DE COBRO
     // ==========================================
     window.abrirModalCobro = function() {
         if(carrito.length === 0) return mostrarToast('El carrito está vacío', 'error');
@@ -935,7 +935,6 @@
     };
 
     window.mostrarCotizacion = function(cot) {
-        // CORRECCIÓN: Quitamos el "truncate" y agregamos precio unitario
         let itemsHtml = cot.items.map(i => {
             const totalItem = (Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2);
             return `
@@ -951,7 +950,6 @@
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
 
-        // CORRECCIÓN WHATSAPP: Añadir precio unitario y no mostrar IGV
         let waText = `¡Hola ${cot.cliente}! 🐾%0AEsta es tu cotización de *${db.empresa.nombre}*:%0A%0A`;
         cot.items.forEach(i => {
             waText += `- ${i.qty}x ${i.nombre} (${i.talla}) [S/ ${i.precioAplicado.toFixed(2)} c/u] -> S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}%0A`;
@@ -959,7 +957,7 @@
         waText += `%0A*TOTAL: S/ ${cot.total.toFixed(2)}*%0A`;
 
         if (cot.tipoEntrega === 'Envío') {
-            waText += `%0A🛵 *DATOS DE ENVÍO:*%0ADestino: ${cot.direccionEntrega}%0A`;
+            waText += `%0A📦 *DATOS DE ENVÍO:*%0ADestino: ${cot.direccionEntrega}%0A`;
         }
         waText += `%0A¡Te esperamos pronto! 🐶`;
 
@@ -987,9 +985,9 @@
                 </div>
 
                 ${cot.tipoEntrega === 'Envío' ? `
-                <div class="bg-indigo-50 border border-indigo-100 p-2 rounded mb-2 mt-2 text-indigo-800">
-                    <p class="font-bold text-[10px]"><i class="fas fa-motorcycle mr-1"></i> PARA ENVÍO</p>
-                    <p class="text-[9px] mt-0.5">${cot.direccionEntrega}</p>
+                <div class="bg-gray-100 border border-dashed border-gray-400 p-2 rounded mb-2 mt-2 text-gray-800 text-center">
+                    <p class="font-bold text-[10px] uppercase"><i class="fas fa-truck mr-1"></i> PARA ENVÍO</p>
+                    <p class="text-[10px] mt-0.5">${cot.direccionEntrega}</p>
                 </div>` : ''}
 
                 <div class="space-y-1 text-xs mb-4">
@@ -1070,17 +1068,15 @@
         if (ventasExportar.length === 0) return mostrarToast('No hay ventas con esos filtros', 'info');
 
         let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-        csvContent += "TICKET,FECHA,CLIENTE,VENDEDOR,METODO,ESTADO,ANULADA,SUBTOTAL,IGV,TOTAL\n";
+        csvContent += "TICKET,FECHA,CLIENTE,VENDEDOR,METODO,ESTADO,ANULADA,TOTAL\n";
 
         ventasExportar.forEach(v => {
-            const subtotal = (v.total / 1.18).toFixed(2);
-            const igv = (v.total - (v.total / 1.18)).toFixed(2);
             const total = v.total.toFixed(2);
             const anulada = v.anulada ? 'SI' : 'NO';
             const clienteEscapado = `"${v.cliente}"`;
             const vendedorEscapado = `"${v.vendedor}"`;
 
-            const row = `TK-${v.id.toString().padStart(6,'0')},${v.fecha},${clienteEscapado},${vendedorEscapado},${v.metodo},${v.estado},${anulada},${subtotal},${igv},${total}`;
+            const row = `TK-${v.id.toString().padStart(6,'0')},${v.fecha},${clienteEscapado},${vendedorEscapado},${v.metodo},${v.estado},${anulada},${total}`;
             csvContent += row + "\n";
         });
 
@@ -1608,9 +1604,9 @@
         const subtotal = Math.round((totalActual / 1.18) * 100) / 100;
         const igv = Math.round((totalActual - subtotal) * 100) / 100;
 
-        document.getElementById('texto-subtotal').innerText = 'S/ ' + subtotal.toFixed(2);
-        document.getElementById('texto-igv').innerText = 'S/ ' + igv.toFixed(2);
-        document.getElementById('texto-total').innerText = 'S/ ' + totalActual.toFixed(2);
+        if(document.getElementById('texto-subtotal')) document.getElementById('texto-subtotal').innerText = 'S/ ' + subtotal.toFixed(2);
+        if(document.getElementById('texto-igv')) document.getElementById('texto-igv').innerText = 'S/ ' + igv.toFixed(2);
+        if(document.getElementById('texto-total')) document.getElementById('texto-total').innerText = 'S/ ' + totalActual.toFixed(2);
     }
 
     function vaciarCarrito() {
@@ -1717,7 +1713,7 @@
             carrito = [];
             limpiarClientePOS();
             actualizarCarritoUI();
-            setTipoEntrega('Tienda');
+            window.setTipoEntrega('Tienda');
             if(document.getElementById('pos-direccion-envio')) document.getElementById('pos-direccion-envio').value = '';
 
             mostrarToast('Venta procesada con éxito', 'success');
@@ -1774,7 +1770,6 @@
         const v = db.ventasHistorial.find(x => x.id === id);
         if(!v) return;
 
-        // CORRECCIÓN: Quitamos el "truncate" y agregamos precio unitario
         let itemsHtml = v.items.map(i => {
             const totalItem = (Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2);
             return `
@@ -1790,7 +1785,6 @@
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
 
-        // CORRECCIÓN WHATSAPP: Añadir precio unitario y no mostrar IGV
         let waText = `¡Hola ${v.cliente}! 🐾%0AEsta es tu boleta de *${db.empresa.nombre}*:%0A%0A`;
         v.items.forEach(i => {
             waText += `- ${i.qty}x ${i.nombre} (${i.talla}) [S/ ${i.precioAplicado.toFixed(2)} c/u] -> S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}%0A`;
@@ -1798,14 +1792,14 @@
         waText += `%0A*TOTAL: S/ ${v.total.toFixed(2)}*%0A`;
 
         if (v.tipoEntrega === 'Envío') {
-            waText += `%0A🛵 *DATOS DE ENVÍO:*%0ADestino: ${v.direccionEntrega}%0A`;
+            waText += `%0A📦 *DATOS DE ENVÍO:*%0ADestino: ${v.direccionEntrega}%0A`;
         }
 
         if ((v.metodo === 'Crédito' || v.estado === 'Pendiente') && v.recibido > 0) {
             waText += `*A CUENTA: S/ ${v.recibido.toFixed(2)}*%0A`;
             waText += `*SALDO PENDIENTE: S/ ${(v.total - v.recibido).toFixed(2)}*%0A`;
         }
-        waText += `%0A¡Gracias por engreír a tu peludito! 🐶`;
+        waText += `%0A¡Gracias por su compra! 🐶`;
 
         abrirModal('Detalle de Venta', `
                 <div id="ticket-captura" class="max-w-[300px] mx-auto bg-white p-6 shadow-sm border border-gray-200 ticket-termico font-mono text-gray-800 relative">
@@ -1831,20 +1825,20 @@
                     </div>
 
                     ${v.tipoEntrega === 'Envío' ? `
-                    <div class="bg-indigo-50 border border-indigo-100 p-2 rounded mb-2 mt-2 text-indigo-800">
-                        <p class="font-bold text-[10px]"><i class="fas fa-motorcycle mr-1"></i> PARA ENVÍO</p>
-                        <p class="text-[9px] mt-0.5">${v.direccionEntrega}</p>
+                    <div class="bg-gray-100 border border-dashed border-gray-400 p-2 rounded mb-2 mt-2 text-gray-800 text-center">
+                        <p class="font-bold text-[10px] uppercase"><i class="fas fa-truck mr-1"></i> PARA ENVÍO</p>
+                        <p class="text-[10px] mt-0.5">${v.direccionEntrega}</p>
                     </div>` : ''}
 
                     <div class="space-y-1 text-xs mb-4">
-                        <div class="flex justify-between font-black text-sm mt-2 border-t border-gray-300 pt-2"><span>TOTAL PAGADO:</span><span>S/ ${v.total.toFixed(2)}</span></div>
+                        <div class="flex justify-between font-black text-sm mt-2 border-t border-gray-300 pt-2"><span>TOTAL:</span><span>S/ ${v.total.toFixed(2)}</span></div>
                         ${(v.metodo === 'Crédito' || v.estado === 'Pendiente') && v.recibido > 0 ? `<div class="flex justify-between font-bold text-gray-700 mt-1"><span>A CUENTA:</span><span>S/ ${v.recibido.toFixed(2)}</span></div><div class="flex justify-between font-black text-red-600 mt-1"><span>SALDO PENDIENTE:</span><span>S/ ${(v.total - v.recibido).toFixed(2)}</span></div>` : ''}
                     </div>
                     <div class="text-[10px] border-t border-dashed border-gray-400 pt-4 mb-6">
                         <div class="flex justify-between"><span>MÉTODO:</span><span class="font-bold ${v.estado === 'Pendiente' ? 'text-red-600' : ''}">${v.metodo} ${v.estado === 'Pendiente' ? '(PENDIENTE)' : ''}</span></div>
                     </div>
                     <div class="text-center text-[10px]">
-                        <p class="font-bold mb-1">¡Gracias por engreír a tu peludito!</p>
+                        <p class="font-bold mb-1">¡Gracias por su compra!</p>
                         <p>Sistema CaniSys</p>
                     </div>
                 </div>
