@@ -243,15 +243,14 @@
                 </div>
                 <div class="flex gap-2 mt-4 overflow-x-auto pb-1 custom-scrollbar">
                     <button onclick="filtrarCat('Todos', 'pos')" class="cat-pos-btn activo bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors shadow-sm">Todos</button>
-                    <button onclick="filtrarCat('Ropa', 'pos')" class="cat-pos-btn bg-white border border-gray-200 text-gray-600 px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Ropa</button>
-                    <button onclick="filtrarCat('Camas', 'pos')" class="cat-pos-btn bg-white border border-gray-200 text-gray-600 px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Camas</button>
-                    <button onclick="filtrarCat('Accesorios', 'pos')" class="cat-pos-btn bg-white border border-gray-200 text-gray-600 px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Accesorios</button>
+                    <button onclick="filtrarCat('Ropa', 'pos')" class="cat-pos-btn bg-white border border-gray-200 text-gray-600 hover:border-gray-900 px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Ropa</button>
+                    <button onclick="filtrarCat('Camas', 'pos')" class="cat-pos-btn bg-white border border-gray-200 text-gray-600 hover:border-gray-900 px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Camas</button>
+                    <button onclick="filtrarCat('Accesorios', 'pos')" class="cat-pos-btn bg-white border border-gray-200 text-gray-600 hover:border-gray-900 px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Accesorios</button>
                 </div>
             </header>
             <div class="p-6 overflow-y-auto h-full custom-scrollbar"><div id="grid-pos" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 fade-in"></div></div>
         </div>
 
-        <!-- BARRA LATERAL (CARRITO) MÁS LIMPIA -->
         <aside class="w-[380px] lg:w-[420px] flex flex-col shrink-0 bg-white shadow-2xl z-20 relative">
             <div class="p-5 border-b border-gray-100 bg-white z-20 shrink-0">
                 <div class="flex justify-between items-center mb-4">
@@ -312,9 +311,9 @@
             </div>
             <div class="flex gap-3 overflow-x-auto pb-1">
                 <button onclick="filtrarCat('Todos', 'inv')" class="cat-inv-btn activo bg-gray-900 text-white px-5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors shadow-sm">Todos</button>
-                <button onclick="filtrarCat('Ropa', 'inv')" class="cat-inv-btn bg-white border border-gray-200 text-gray-600 px-5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Ropa</button>
-                <button onclick="filtrarCat('Camas', 'inv')" class="cat-inv-btn bg-white border border-gray-200 text-gray-600 px-5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Camas</button>
-                <button onclick="filtrarCat('Accesorios', 'inv')" class="cat-inv-btn bg-white border border-gray-200 text-gray-600 px-5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Accesorios</button>
+                <button onclick="filtrarCat('Ropa', 'inv')" class="cat-inv-btn bg-white border border-gray-200 text-gray-600 hover:border-gray-900 px-5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Ropa</button>
+                <button onclick="filtrarCat('Camas', 'inv')" class="cat-inv-btn bg-white border border-gray-200 text-gray-600 hover:border-gray-900 px-5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Camas</button>
+                <button onclick="filtrarCat('Accesorios', 'inv')" class="cat-inv-btn bg-white border border-gray-200 text-gray-600 hover:border-gray-900 px-5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-colors">Accesorios</button>
             </div>
         </header>
         <div class="p-10 max-w-7xl mx-auto w-full"><div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 fade-in" id="grid-tienda"></div></div>
@@ -361,7 +360,7 @@
                     <input type="text" id="busqueda-rep" oninput="debounceFiltrar('busqueda-rep', 'tabla-reportes', 'rep-row')" placeholder="Buscar ticket..." class="w-full bg-white border border-gray-300 rounded-xl py-2 pl-11 pr-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm">
                 </div>
                 <div class="relative flex items-center w-[150px]">
-                    <select id="filtro-metodo-rep" onchange="renderizarDatos()" class="w-full bg-white border border-gray-300 rounded-xl py-2 px-3 text-sm font-semibold text-gray-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
+                    <select id="filtro-metodo-rep" onchange="renderizarDatos()" class="w-full bg-white border border-gray-300 rounded-xl py-2 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm text-gray-600 cursor-pointer">
                         <option value="">Todos los Pagos</option>
                         <option value="Efectivo">Efectivo</option>
                         <option value="Yape">Yape</option>
@@ -371,7 +370,7 @@
                     </select>
                 </div>
                 <div class="relative flex items-center gap-2 max-w-[200px] w-full">
-                    <input type="date" id="filtro-fecha-rep" onchange="renderizarDatos()" class="w-full bg-white border border-gray-300 rounded-xl py-2 px-3 text-sm font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm" title="Filtrar por fecha">
+                    <input type="date" id="filtro-fecha-rep" onchange="renderizarDatos()" class="w-full bg-white border border-gray-300 rounded-xl py-2 px-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm text-gray-600" title="Filtrar por fecha">
                     <button onclick="document.getElementById('filtro-fecha-rep').value=''; document.getElementById('filtro-metodo-rep').value=''; renderizarDatos()" class="text-gray-400 hover:text-red-500 transition-colors" title="Ver todos"><i class="fas fa-times-circle text-lg"></i></button>
                 </div>
             </div>
@@ -419,6 +418,7 @@
                 </div>
             </div>
 
+            <!-- BOTÓN DE COTIZACIONES MOVIDO AQUI -->
             <div class="mb-4">
                 <button onclick="verHistorialCotizaciones()" class="w-full bg-blue-50 text-blue-700 border border-blue-200 py-4 rounded-xl text-sm font-bold hover:bg-blue-100 transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-sm"><i class="fas fa-file-invoice text-xl"></i> Ver Historial de Cotizaciones (Proformas)</button>
             </div>
@@ -901,9 +901,28 @@
     };
 
     window.mostrarCotizacion = function(cot) {
-        let itemsHtml = cot.items.map(i => `<div class="flex justify-between text-xs mb-1"><span class="truncate w-3/5">${i.qty}x ${i.nombre} (${i.talla})</span><span class="w-2/5 text-right font-bold">S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}</span></div>`).join('');
+        // CORRECCIÓN: Quitamos el "truncate" y agregamos precio unitario
+        let itemsHtml = cot.items.map(i => {
+            const totalItem = (Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2);
+            return `
+            <div class="mb-2 text-xs border-b border-gray-100 pb-1">
+                <div class="whitespace-normal leading-tight text-gray-800 pr-1">${i.qty}x ${i.nombre} (Talla: ${i.talla})</div>
+                <div class="flex justify-between items-center mt-1 pl-4">
+                    <span class="text-[10px] text-gray-500">P. Unit: S/ ${i.precioAplicado.toFixed(2)}</span>
+                    <span class="font-bold text-gray-900">S/ ${totalItem}</span>
+                </div>
+            </div>`;
+        }).join('');
+
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
+
+        // CORRECCIÓN WHATSAPP: Añadir precio unitario
+        let waText = `¡Hola ${cot.cliente}! 🐾%0AEsta es tu cotización de *${db.empresa.nombre}*:%0A%0A`;
+        cot.items.forEach(i => {
+            waText += `- ${i.qty}x ${i.nombre} (${i.talla}) [S/ ${i.precioAplicado.toFixed(2)} c/u] -> S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}%0A`;
+        });
+        waText += `%0A*TOTAL: S/ ${cot.total.toFixed(2)}*%0A%0A¡Te esperamos pronto! 🐶`;
 
         abrirModal('Cotización Generada', `
             <div id="ticket-captura" class="max-w-[300px] mx-auto bg-white p-6 shadow-sm border border-gray-200 ticket-termico font-mono text-gray-800 relative">
@@ -921,7 +940,10 @@
                     <p><b>CLIENTE:</b> ${cot.cliente}</p>
                 </div>
                 <div class="border-t border-b border-dashed border-gray-400 py-3 mb-4 min-h-[100px]">
-                    <div class="flex justify-between text-[10px] font-bold mb-2"><span>CANT DESCRIPCIÓN</span><span>IMPORTE</span></div>
+                    <div class="flex justify-between text-[10px] font-bold mb-2 border-b border-dashed border-gray-300 pb-1">
+                        <span>CANT / DESCRIPCIÓN</span>
+                        <span>IMPORTE</span>
+                    </div>
                     ${itemsHtml}
                 </div>
                 <div class="space-y-1 text-xs mb-4">
@@ -935,7 +957,8 @@
             </div>
             <div class="mt-6 flex flex-col gap-3 hidden-print">
                 <button onclick="window.print()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-colors flex items-center justify-center gap-2"><i class="fas fa-print text-lg"></i> Imprimir Cotización</button>
-                <button id="btn-share-img" onclick="compartirComoImagen()" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"><i class="fab fa-whatsapp text-xl"></i> Enviar como Imagen (WhatsApp)</button>
+                <a href="https://wa.me/?text=${waText}" target="_blank" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"><i class="fab fa-whatsapp text-xl"></i> Enviar como Texto (WhatsApp)</a>
+                <button id="btn-share-img" onclick="compartirComoImagen()" class="w-full bg-blue-500 text-white py-3 rounded-xl font-bold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-blue-200"><i class="fas fa-camera text-xl"></i> Enviar como Imagen (WhatsApp)</button>
             </div>
         `, null, null);
     };
@@ -1696,14 +1719,26 @@
         const v = db.ventasHistorial.find(x => x.id === id);
         if(!v) return;
 
-        let itemsHtml = v.items.map(i => `<div class="flex justify-between text-xs mb-1"><span class="truncate w-3/5">${i.qty}x ${i.nombre} (${i.talla})</span><span class="w-2/5 text-right font-bold">S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}</span></div>`).join('');
+        // CORRECCIÓN: Quitamos el "truncate" y agregamos precio unitario
+        let itemsHtml = v.items.map(i => {
+            const totalItem = (Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2);
+            return `
+            <div class="mb-2 text-xs border-b border-gray-100 pb-1">
+                <div class="whitespace-normal leading-tight text-gray-800 pr-1">${i.qty}x ${i.nombre} (Talla: ${i.talla})</div>
+                <div class="flex justify-between items-center mt-1 pl-4">
+                    <span class="text-[10px] text-gray-500">P. Unit: S/ ${i.precioAplicado.toFixed(2)}</span>
+                    <span class="font-bold text-gray-900">S/ ${totalItem}</span>
+                </div>
+            </div>`;
+        }).join('');
 
         const logoSrc = db.empresa && db.empresa.logo ? db.empresa.logo : '';
         const logoHtml = logoSrc ? `<img src="${logoSrc}" class="h-12 mx-auto mb-2 grayscale object-contain">` : `<i class="fas fa-paw text-3xl text-gray-800 mb-2"></i>`;
 
+        // CORRECCIÓN WHATSAPP: Añadir precio unitario
         let waText = `¡Hola ${v.cliente}! 🐾%0AEsta es tu boleta de *${db.empresa.nombre}*:%0A%0A`;
         v.items.forEach(i => {
-            waText += `- ${i.qty}x ${i.nombre} (Talla: ${i.talla}) -> S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}%0A`;
+            waText += `- ${i.qty}x ${i.nombre} (${i.talla}) [S/ ${i.precioAplicado.toFixed(2)} c/u] -> S/ ${(Math.round(i.precioAplicado * i.qty * 100) / 100).toFixed(2)}%0A`;
         });
         waText += `%0A*TOTAL: S/ ${v.total.toFixed(2)}*%0A`;
 
@@ -1719,10 +1754,22 @@
                     <div class="text-center border-b border-dashed border-gray-400 pb-4 mb-4">
                         ${logoHtml}
                         <h2 class="font-black text-xl tracking-tighter uppercase">${db.empresa.nombre}</h2>
-                        <p class="text-[10px] mt-1">RUC: ${db.empresa.ruc}</p><p class="text-[10px]">${db.empresa.dir}</p>
+                        <p class="text-[10px] mt-1">RUC: ${db.empresa.ruc}</p>
+                        <p class="text-[10px]">${db.empresa.dir}</p>
                     </div>
-                    <div class="text-[10px] mb-4 space-y-1"><p><b>TICKET:</b> TK-${v.id.toString().padStart(6, '0')}</p><p><b>FECHA:</b> ${v.fecha}</p><p><b>CAJERO:</b> ${v.vendedor}</p><p><b>CLIENTE:</b> ${v.cliente}</p></div>
-                    <div class="border-t border-b border-dashed border-gray-400 py-3 mb-4 min-h-[100px]"><div class="flex justify-between text-[10px] font-bold mb-2"><span>CANT DESCRIPCIÓN</span><span>IMPORTE</span></div>${itemsHtml}</div>
+                    <div class="text-[10px] mb-4 space-y-1">
+                        <p><b>TICKET:</b> TK-${v.id.toString().padStart(6, '0')}</p>
+                        <p><b>FECHA:</b> ${v.fecha}</p>
+                        <p><b>CAJERO:</b> ${v.vendedor}</p>
+                        <p><b>CLIENTE:</b> ${v.cliente}</p>
+                    </div>
+                    <div class="border-t border-b border-dashed border-gray-400 py-3 mb-4 min-h-[100px]">
+                        <div class="flex justify-between text-[10px] font-bold mb-2 border-b border-dashed border-gray-300 pb-1">
+                            <span>CANT / DESCRIPCIÓN</span>
+                            <span>IMPORTE</span>
+                        </div>
+                        ${itemsHtml}
+                    </div>
                     <div class="space-y-1 text-xs mb-4">
                         <div class="flex justify-between"><span>SUBTOTAL:</span><span>S/ ${(v.total / 1.18).toFixed(2)}</span></div>
                         <div class="flex justify-between"><span>IGV (18%):</span><span>S/ ${(v.total - (v.total / 1.18)).toFixed(2)}</span></div>
@@ -1732,12 +1779,16 @@
                     <div class="text-[10px] border-t border-dashed border-gray-400 pt-4 mb-6">
                         <div class="flex justify-between"><span>MÉTODO:</span><span class="font-bold ${v.estado === 'Pendiente' ? 'text-red-600' : ''}">${v.metodo} ${v.estado === 'Pendiente' ? '(PENDIENTE)' : ''}</span></div>
                     </div>
-                    <div class="text-center text-[10px]"><p class="font-bold mb-1">¡Gracias por engreír a tu peludito!</p><p>Sistema CaniSys</p></div>
+                    <div class="text-center text-[10px]">
+                        <p class="font-bold mb-1">¡Gracias por engreír a tu peludito!</p>
+                        <p>Sistema CaniSys</p>
+                    </div>
                 </div>
 
                 <div class="mt-6 flex flex-col gap-3 hidden-print">
                     <button onclick="window.print()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-colors flex items-center justify-center gap-2"><i class="fas fa-print text-lg"></i> Imprimir Ticket</button>
-                    <button id="btn-share-img" onclick="compartirComoImagen()" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"><i class="fab fa-whatsapp text-xl"></i> Compartir Ticket (WhatsApp)</button>
+                    <a href="https://wa.me/?text=${waText}" target="_blank" class="w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-200"><i class="fab fa-whatsapp text-xl"></i> Enviar como Texto (WhatsApp)</a>
+                    <button id="btn-share-img" onclick="compartirComoImagen()" class="w-full bg-blue-500 text-white py-3 rounded-xl font-bold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-blue-200"><i class="fas fa-camera text-xl"></i> Enviar como Imagen (WhatsApp)</button>
                 </div>
             `, null, null);
     }
